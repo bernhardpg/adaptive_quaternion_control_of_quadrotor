@@ -130,6 +130,12 @@ include_directories(
  ${EIGEN3_INCLUDE_DIRS}
 )
 
+add_executable(adaptive_controller
+  src/controller/adaptive_controller.cpp
+)
+target_link_libraries(adaptive_controller ${catkin_LIBRARIES})
+add_dependencies(adaptive_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/adaptive_attitude_controller.cpp

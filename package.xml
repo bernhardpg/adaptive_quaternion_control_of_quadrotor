@@ -50,17 +50,25 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build>nav_msgs</build>
-  <build>std_msgs</build>
-  <build>sensor_msgs</build>
-  <build>roscpp</build>
-  <build>rospy</build>
-  <build>rosflight_msgs</build>
-  <build>eigen_conversions</build>
-  <build>message_generation</build>
-  <build>roslib</build>
+  <build_depend>nav_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>rosflight_msgs</build_depend>
+  <build_depend>eigen_conversions</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>roslib</build_depend>
 
-
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>rosflight_msgs</exec_depend>
+  <exec_depend>eigen_conversions</exec_depend>
+  <exec_depend>message_exectime</exec_depend>
+  <exec_depend>roslib</exec_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>
