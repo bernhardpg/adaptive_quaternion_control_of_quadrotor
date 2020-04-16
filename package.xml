@@ -50,6 +50,17 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build>nav_msgs</build>
+  <build>std_msgs</build>
+  <build>sensor_msgs</build>
+  <build>roscpp</build>
+  <build>rospy</build>
+  <build>rosflight_msgs</build>
+  <build>eigen_conversions</build>
+  <build>message_generation</build>
+  <build>roslib</build>
+
+
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

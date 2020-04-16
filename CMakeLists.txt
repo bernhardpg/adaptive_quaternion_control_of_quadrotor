@@ -7,11 +7,24 @@ project(adaptive_attitude_controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  rosflight_msgs
+  std_msgs
+  nav_msgs
+  Eigen3
+)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+catkin_package(
+  INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIRS}
+  CATKIN_DEPENDS roscpp rospy eigen_conversions
+    rosflight_msgs std_msgs nav_msgs sensor_msgs roslib
+  DEPENDS EIGEN3
+)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -112,8 +125,9 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-# ${catkin_INCLUDE_DIRS}
+ include
+ ${catkin_INCLUDE_DIRS}
+ ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
