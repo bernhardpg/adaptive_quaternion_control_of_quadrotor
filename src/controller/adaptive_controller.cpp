@@ -16,10 +16,13 @@ namespace controller {
   void AdaptiveController::init()
   {
     // Controller params
-    k_q_ = 1.0;
-    k_w_ = 1.0;
+    k_q_ = 0.5;
+    k_w_ = 0.1;
 
     // Initialize model parameters
+    m_ = 2.0; // kg
+    g_ = 9.8; // m/s**2
+    max_thrust_ = 14.961 * 4; // From gazebo sim, 4 rotor
     J_ = Eigen::Matrix3d::Identity();
 
     // Initialize variables
@@ -34,7 +37,7 @@ namespace controller {
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
 
-    //height_c = 2.0;
+    height_c_ = 1.5;
 
   }
 
@@ -56,12 +59,27 @@ namespace controller {
 
           msg->twist.twist.angular.z; // TODO should this be negative?
 
+    height_ = -msg->pose.pose.position.z;
+    height_dot_ = -msg->twist.twist.linear.z;
+
+    //
     // Controll loop
     calculateErrors();
     computeInput();
+    heightController();
     publishCommand();
   }
 
+  void AdaptiveController::heightController()
+  {
+    e_height_  = height_ - height_c_;
+    e_height_dot_ = height_dot_;
+    std::cout << "e_height_: " << e_height_ << std::endl;
+
+    input_.F = - 40.0 * e_height_ - 10 * e_height_dot_ + m_ * g_;
+    //std::cout << "F: "<< input_.F << std::endl;
+    //std::cout << saturate(input_.F / max_thrust_, 0, 1.0) << std::endl;
+  }
 
   void AdaptiveController::calculateErrors()
   {
@@ -78,6 +96,7 @@ namespace controller {
 
   void AdaptiveController::computeInput()
   {
+
     // Baseline controller
     Eigen::Vector3d cancellation_terms = cross_map(w_) * J_ * w_
       + J_ * (w_c_dot_
@@ -87,6 +106,7 @@ namespace controller {
     Eigen::Vector3d feedforward_terms = - k_q_ * quat_log_v(q_e_) - k_w_ * w_bc_;
 
     input_.tau = cancellation_terms + feedforward_terms;
+    std::cout << "input_tau:\n" << input_.tau << std::endl << std::endl;
   }
 
   
@@ -95,14 +115,16 @@ namespace controller {
     rosflight_msgs::Command command;
     command.header.stamp = ros::Time::now();
     command.ignore = rosflight_msgs::Command::IGNORE_NONE;
-    command.mode = rosflight_msgs::Command::MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE;
-    
+    //command.mode = rosflight_msgs::Command::MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE;
+    command.mode = rosflight_msgs::Command::MODE_PASS_THROUGH;
+    //
+
     // F from 0 to 1, scale by max thrust
-    command.F = 0.6;
+    command.F = saturate(input_.F / max_thrust_, 0, 1.0);
     // TODO input here, but it must be scaled
-    command.x = 0;
-    command.y = 0;
-    command.z = 0;
+    command.x = input_.tau(0);
+    command.y = input_.tau(1);
+    command.z = input_.tau(2);
 
     command_publisher_.publish(command);
   }
