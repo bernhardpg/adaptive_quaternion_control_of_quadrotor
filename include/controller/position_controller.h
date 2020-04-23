@@ -25,17 +25,23 @@ namespace controller{
       ros::NodeHandle nh_;
       ros::Subscriber odom_subscriber_;
       ros::Publisher command_publisher_;
+      ros::Publisher error_publisher_;
 
       // Signals
       // State
       double height_;
       double height_dot_;
+      Eigen::Vector2d pos_;
+      Eigen::Vector2d vel_;
       // Errors
       double e_height_;
       double e_height_dot_;
+      Eigen::Vector2d e_pos_;
+      Eigen::Vector2d e_vel_;
 
       // Command
       double height_c_;
+      Eigen::Vector2d pos_c_;
 
       // Model parameters
       double m_;

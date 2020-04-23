@@ -21,9 +21,12 @@ namespace controller {
     private:
       // ROS
       ros::NodeHandle nh_;
+      ros::Publisher command_publisher_;
       ros::Subscriber odom_subscriber_;
       ros::Subscriber attitude_command_subscriber_;
-      ros::Publisher command_publisher_;
+
+      ros::Publisher debug_attitude;
+      ros::Publisher debug_attitude_c;
 
       // Signals
       // State
@@ -39,6 +42,7 @@ namespace controller {
 
       // Model parameters
       double max_thrust_;
+      double max_torque_;
       Eigen::Matrix3d J_; // Inertia matrix
 
       // Controller
@@ -55,11 +59,16 @@ namespace controller {
       void commandCallback(const rosflight_msgs::Command::ConstPtr& msg);
 
       double saturate(double v, double min, double max); // TODO move somewhere else
+
       // TODO move somewhere else
       Eigen::Matrix3d cross_map(Eigen::Vector3d v);
       Eigen::Vector3d vee_map(Eigen::Matrix3d v_hat); // Inverse of cross_map
       Eigen::Vector3d quat_log_v(Eigen::Quaterniond q);
       Eigen::Quaterniond quat_plus_map(Eigen::Quaterniond q);
 
+      Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
+      Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
+
+      void publishDebug();
   };
 }
