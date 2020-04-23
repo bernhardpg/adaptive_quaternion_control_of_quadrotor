@@ -25,23 +25,17 @@ namespace controller{
       ros::NodeHandle nh_;
       ros::Subscriber odom_subscriber_;
       ros::Publisher command_publisher_;
-      ros::Publisher error_publisher_;
+      ros::Publisher debug_position_error;
 
       // Signals
       // State
-      double height_;
-      double height_dot_;
-      Eigen::Vector2d pos_;
-      Eigen::Vector2d vel_;
+      Eigen::VectorXd pos_;
+      Eigen::Vector3d z_b_; // z-axis in body frame
       // Errors
-      double e_height_;
-      double e_height_dot_;
-      Eigen::Vector2d e_pos_;
-      Eigen::Vector2d e_vel_;
+      Eigen::VectorXd e_pos_;
 
       // Command
-      double height_c_;
-      Eigen::Vector2d pos_c_;
+      Eigen::VectorXd pos_d_;
 
       // Model parameters
       double m_;
@@ -61,5 +55,9 @@ namespace controller{
       void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
       double saturate(double v, double min, double max);
+      void publish_debug();
+
+      Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
+      Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
   };
 }

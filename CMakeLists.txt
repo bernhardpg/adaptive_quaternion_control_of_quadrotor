@@ -7,13 +7,19 @@ project(adaptive_attitude_controller)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   rosflight_msgs
   std_msgs
   nav_msgs
-  Eigen3
+)
+
+# Specify Eigen path to make sure Eigen::all etc are included
+list(APPEND CMAKE_PREFIX_PATH /usr/local/include/eigen3/Eigen)
+find_package(
+  Eigen3 3.3.90 REQUIRED
 )
 
 ## System dependencies are found with CMake's conventions

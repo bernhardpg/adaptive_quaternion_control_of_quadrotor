@@ -6,6 +6,7 @@
 #include <nav_msgs/Odometry.h>
 #include <cmath>
 #include "rosflight_msgs/Command.h"
+#include "rosflight_msgs/Attitude.h"
 
 namespace controller {
   typedef struct
@@ -38,7 +39,9 @@ namespace controller {
       // Command
       Eigen::Quaterniond q_c_;
       Eigen::Vector3d w_c_; // Given in command frame
+      Eigen::Vector3d w_c_body_frame;
       Eigen::Vector3d w_c_dot_;
+      Eigen::Vector3d w_c_dot_body_frame;
 
       // Model parameters
       double max_thrust_;
@@ -55,7 +58,7 @@ namespace controller {
       void calculateErrors();
       void computeInput();
       void publishCommand();
-      void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
+      void odomCallback(const rosflight_msgs::Attitude::ConstPtr &msg);
       void commandCallback(const rosflight_msgs::Command::ConstPtr& msg);
 
       double saturate(double v, double min, double max); // TODO move somewhere else
@@ -66,9 +69,13 @@ namespace controller {
       Eigen::Vector3d quat_log_v(Eigen::Quaterniond q);
       Eigen::Quaterniond quat_plus_map(Eigen::Quaterniond q);
 
-      Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
-      Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
+      //Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
+      //Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
 
       void publishDebug();
   };
+
+  Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
+  Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
+
 }
