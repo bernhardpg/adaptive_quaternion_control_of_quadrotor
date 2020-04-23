@@ -1,4 +1,4 @@
-#include "controller/adaptive_controller.h"
+#include "controller/attitude_controller.h"
 
 namespace controller {
   AdaptiveController::AdaptiveController(ros::NodeHandle *nh)
@@ -9,6 +9,8 @@ namespace controller {
     // TODO change to subscribe to /attitude published by rosflight
     odom_subscriber_ = nh_.subscribe("/multirotor/truth/NED", 1000,
         &AdaptiveController::odomCallback, this);
+    attitude_command_subscriber_ = nh_.subscribe("/attitude_command", 1000,
+        &AdaptiveController::commandCallback, this);
     command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
         "/command", 1000);
   }
@@ -20,8 +22,6 @@ namespace controller {
     k_w_ = 0.1;
 
     // Initialize model parameters
-    m_ = 2.0; // kg
-    g_ = 9.8; // m/s**2
     max_thrust_ = 14.961 * 4; // From gazebo sim, 4 rotor
     J_ = Eigen::Matrix3d::Identity();
 
@@ -36,18 +36,17 @@ namespace controller {
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
-
-    height_c_ = 1.5;
-
   }
 
   void AdaptiveController::odomCallback(
-      const nav_msgs::Odometry::ConstPtr& msg
+      const nav_msgs::Odometry::ConstPtr &msg
       )
   {
+    std::cout << "received odom" << std::endl;
+      double height_;
+      double height_dot_;
     // Attitude
     q_ = Eigen::Quaterniond(msg->pose.pose.orientation.w,
-  
 
                             msg->pose.pose.orientation.x,
                             msg->pose.pose.orientation.y,
@@ -59,32 +58,22 @@ namespace controller {
 
           msg->twist.twist.angular.z; // TODO should this be negative?
 
-    height_ = -msg->pose.pose.position.z;
-    height_dot_ = -msg->twist.twist.linear.z;
-
-    //
     // Controll loop
     calculateErrors();
     computeInput();
-    heightController();
     publishCommand();
   }
 
-  void AdaptiveController::heightController()
+  void AdaptiveController::commandCallback(
+      const rosflight_msgs::Command::ConstPtr& msg
+      )
   {
-    e_height_  = height_ - height_c_;
-    e_height_dot_ = height_dot_;
-    std::cout << "e_height_: " << e_height_ << std::endl;
-
-    input_.F = - 40.0 * e_height_ - 10 * e_height_dot_ + m_ * g_;
-    //std::cout << "F: "<< input_.F << std::endl;
-    //std::cout << saturate(input_.F / max_thrust_, 0, 1.0) << std::endl;
+    input_.F = msg->F;
   }
 
   void AdaptiveController::calculateErrors()
   {
     // Calulate attitude error
-  
     q_e_ = q_c_ * q_;
     // Calculate angular velocity error
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
@@ -109,18 +98,14 @@ namespace controller {
     std::cout << "input_tau:\n" << input_.tau << std::endl << std::endl;
   }
 
-  
   void AdaptiveController::publishCommand()
   {
     rosflight_msgs::Command command;
     command.header.stamp = ros::Time::now();
-    command.ignore = rosflight_msgs::Command::IGNORE_NONE;
     //command.mode = rosflight_msgs::Command::MODE_ROLLRATE_PITCHRATE_YAWRATE_THROTTLE;
     command.mode = rosflight_msgs::Command::MODE_PASS_THROUGH;
-    //
 
-    // F from 0 to 1, scale by max thrust
-    command.F = saturate(input_.F / max_thrust_, 0, 1.0);
+    command.F = input_.F;
     // TODO input here, but it must be scaled
     command.x = input_.tau(0);
     command.y = input_.tau(1);

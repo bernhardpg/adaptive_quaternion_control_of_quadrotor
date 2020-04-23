@@ -22,29 +22,22 @@ namespace controller {
       // ROS
       ros::NodeHandle nh_;
       ros::Subscriber odom_subscriber_;
+      ros::Subscriber attitude_command_subscriber_;
       ros::Publisher command_publisher_;
 
       // Signals
       // State
       Eigen::Quaterniond q_; // Rotation from body to inertial frame
       Eigen::Vector3d w_; // Angular velocity between body and inertial frame
-      double height_;
-      double height_dot_;
       // Errors
       Eigen::Quaterniond q_e_; // From body to command frame
       Eigen::Vector3d w_bc_; // Between body and command frame, given in body frame
-      double e_height_;
-      double e_height_dot_;
-
       // Command
       Eigen::Quaterniond q_c_;
       Eigen::Vector3d w_c_; // Given in command frame
       Eigen::Vector3d w_c_dot_;
-      double height_c_;
 
       // Model parameters
-      double m_;
-      double g_;
       double max_thrust_;
       Eigen::Matrix3d J_; // Inertia matrix
 
@@ -58,9 +51,8 @@ namespace controller {
       void calculateErrors();
       void computeInput();
       void publishCommand();
-      void odomCallback(const nav_msgs::OdometryConstPtr &msg);
-
-      void heightController();
+      void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
+      void commandCallback(const rosflight_msgs::Command::ConstPtr& msg);
 
       double saturate(double v, double min, double max); // TODO move somewhere else
       // TODO move somewhere else
