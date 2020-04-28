@@ -14,11 +14,13 @@ namespace controller {
     command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
         "/command", 1000);
 
-
     debug_attitude = nh_.advertise<rosflight_msgs::Command>(
-        "/debug_attitude", 1000);
+        "/attitude_rpy", 1000);
     debug_attitude_c = nh_.advertise<rosflight_msgs::Command>(
-        "/debug_attitude_d", 1000);
+        "/attitude_rpy_d", 1000);
+
+
+    std::cout << "Attitude controller initialized" << std::endl;
 
   }
 
@@ -57,7 +59,7 @@ namespace controller {
       //const nav_msgs::Odometry::ConstPtr &msg
       const rosflight_msgs::Attitude::ConstPtr &msg
       )
-  { 
+  {
 
     q_ = Eigen::Quaterniond(msg->attitude.w,
                             msg->attitude.x,
@@ -147,10 +149,12 @@ namespace controller {
     Eigen::Vector3d feedforward_terms = J_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
 
     input_.tau = cancellation_terms + feedforward_terms;
+    /*
     std::cout << "F: " << saturate(input_.F / max_thrust_, 0, 1) << std::endl;
     std::cout << "input_tau:\n" << saturate(input_.tau(0) / max_torque_, 0, 1) << std::endl
       << saturate(input_.tau(1) / max_torque_, 0, 1) << std::endl
       << saturate(input_.tau(2) / 3, 0, 1) << std::endl;
+      */
   }
 
   void AdaptiveController::publishCommand()

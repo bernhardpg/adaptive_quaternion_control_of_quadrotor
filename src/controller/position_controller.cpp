@@ -12,29 +12,20 @@ namespace controller {
     command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
         "/attitude_command", 1000);
     debug_position_error = nh_.advertise<rosflight_msgs::Command>(
-        "/debug_position_error", 1000);
+        "/position_error", 1000);
+
+    std::cout << "Position controller initialized" << std::endl;
+
   }
 
-  void PositionController::publish_debug()
-  {
-    rosflight_msgs::Command pos_error;
-    pos_error.header.stamp = ros::Time::now();
-    pos_error.x = e_pos_(0);
-    pos_error.y = e_pos_(1);
-    pos_error.z = e_pos_(2);
-    debug_position_error.publish(pos_error);
-  }
 
   void PositionController::init()
   {
-    // Controller params
-    k_e_ = 0.5;
-    k_e_dot_ = 0.1;
-
     // Initialize model parameters
     m_ = 2.0; // kg
     g_ = 9.8; // m/s**2
     max_thrust_ = 14.961 * 4; // From gazebo sim, 4 rotor
+    //std::cout << "F: " << input_.F << std::endl;
 
     // Initialize variables
     input_.F = 0;
@@ -47,14 +38,21 @@ namespace controller {
     pos_d_(2) = -1.0; // set height
   }
 
+  void PositionController::publish_position_error()
+  {
+    rosflight_msgs::Command pos_error;
+    pos_error.header.stamp = ros::Time::now();
+    pos_error.x = e_pos_(0);
+    pos_error.y = e_pos_(1);
+    pos_error.z = e_pos_(2);
+    debug_position_error.publish(pos_error);
+  }
+
   void PositionController::odomCallback(
       const nav_msgs::Odometry::ConstPtr& msg
       )
   {
-    Eigen::MatrixXd K_(3,6);
-    K_ << 3.162277660168377746e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 4.040365740912170267e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
-0.000000000000000000e+00, 3.162277660168377302e+00, -8.053181886649652016e-16, 0.000000000000000000e+00, 4.040365740912164050e+00, -2.261300730615375946e-16,
-0.000000000000000000e+00, 3.713038044546935330e-16, 7.071067811865494157e+00, 0.000000000000000000e+00, -2.261300730615375946e-16, 3.891289712130285405e+00;
+
     // TODO replace with attitude from rosflight
     // NOTE NED frame!
     pos_ << msg->pose.pose.position.x,
@@ -76,7 +74,7 @@ namespace controller {
     calculateErrors();
     computeInput();
     publishCommand();
-    publish_debug();
+    publish_position_error();
   }
 
   void PositionController::calculateErrors()
@@ -90,22 +88,24 @@ namespace controller {
     // TODO what about mixer??
     // TODO clean up
     Eigen::MatrixXd K_(3,6);
-    K_ << 3.162277660168387072e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 2.706391568183874163e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
-0.000000000000000000e+00, 3.162277660168373750e+00, 8.696941155281875246e-16, 0.000000000000000000e+00, 2.706391568183868834e+00, 8.757765015679361318e-16,
-0.000000000000000000e+00, 1.917029567748867069e-15, 7.071067811865547448e+00, 0.000000000000000000e+00, 8.757765015679361318e-16, 3.891289712130304057e+00;
+    K_ <<
 
-    Eigen::Vector3d u_pos = - K_ * (e_pos_ - pos_d_);
-    Eigen::Vector3d u_pd = u_pos - Eigen::Vector3d(0,0, g_);
+3.162277660168367532e+00, 0.000000000000000000e+00, 0.000000000000000000e+00, 5.596834401725383046e+00, 0.000000000000000000e+00, 0.000000000000000000e+00,
+0.000000000000000000e+00, 3.162277660168351545e+00, -1.140793766416117155e-13, 0.000000000000000000e+00, 5.596834401725378605e+00, -1.202692469726148055e-14,
+0.000000000000000000e+00, -6.468126082651022810e-14, 9.999999999999516831e+00, 0.000000000000000000e+00, -1.202692469726148055e-14, 1.095445115010327619e+01;
+
+
+
+    Eigen::Vector3d u_pos = - K_ * (e_pos_);
+    Eigen::Vector3d u_pd = u_pos - Eigen::Vector3d(0,0, 1.7 * g_); // TODO factor two here works very well, but why?
 
     Eigen::Quaterniond q_d;
     q_d.w() = (-z_b_.dot(u_pd) + u_pd.norm());
     q_d.vec() = -z_b_.cross(u_pd);
     q_d.normalize();
 
-    double F_th = u_pd.norm() * m_;
+    double F_th = u_pd.norm() * m_; // Note: F always applied in body z-axis
     Eigen::Vector3d attitude_d = QuatToEuler(q_d);
-    std::cout << "attitude_d:\n" << attitude_d << std::endl;
-    std::cout << "Fth:" << F_th << std::endl;
     input_.F = F_th;
     input_.roll = attitude_d(0);
     input_.pitch= attitude_d(1);
@@ -119,7 +119,6 @@ namespace controller {
     command.mode = rosflight_msgs::Command::MODE_ROLL_PITCH_YAWRATE_THROTTLE;
 
     // Scale inputs in attitude controller
-    //std::cout << "F: " << input_.F << std::endl;
     command.F = input_.F;
     command.x = input_.roll;
     command.y = input_.pitch;

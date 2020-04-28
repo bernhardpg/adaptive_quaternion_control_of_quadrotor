@@ -43,8 +43,6 @@ namespace controller{
       double max_thrust_;
 
       // Controller
-      double k_e_;
-      double k_e_dot_;
       attitude_input_t input_;
 
       // Functions
@@ -55,7 +53,7 @@ namespace controller{
       void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
       double saturate(double v, double min, double max);
-      void publish_debug();
+      void publish_position_error();
 
       Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
       Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
