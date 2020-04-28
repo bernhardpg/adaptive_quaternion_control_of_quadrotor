@@ -14,13 +14,14 @@ namespace controller {
     command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
         "/command", 1000);
 
-    debug_attitude = nh_.advertise<rosflight_msgs::Command>(
-        "/attitude_rpy", 1000);
-    debug_attitude_c = nh_.advertise<rosflight_msgs::Command>(
-        "/attitude_rpy_d", 1000);
+    attitude_publisher_ = nh_.advertise<rosflight_msgs::Command>(
+        "/attitude_euler", 1000);
+    attitude_ref_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/attitude_ref_euler", 1000);
 
 
     std::cout << "Attitude controller initialized" << std::endl;
+
 
   }
 
@@ -70,29 +71,14 @@ namespace controller {
           msg->angular_velocity.y,
           msg->angular_velocity.z;
 
-    /*
-    // Attitude
-    q_ = Eigen::Quaterniond(msg->pose.pose.orientation.w,
-                            msg->pose.pose.orientation.x,
-                            msg->pose.pose.orientation.y,
-                            msg->pose.pose.orientation.z);
-
-
-
-    // Angular velocity
-    w_ << msg->twist.twist.angular.x,
-          msg->twist.twist.angular.y,
-          msg->twist.twist.angular.z; // TODO should this be negative?
-          */
-
     // Controll loop
     calculateErrors();
     computeInput();
     publishCommand();
-    publishDebug();
+    publish_attitude_tracking();
   }
 
-  void AdaptiveController::publishDebug()
+  void AdaptiveController::publish_attitude_tracking()
   {
     rosflight_msgs::Command attitude;
     attitude.header.stamp = ros::Time::now();
@@ -100,7 +86,7 @@ namespace controller {
     attitude.x = att_vec(0);
     attitude.y = att_vec(1);
     attitude.z = att_vec(2);
-    debug_attitude.publish(attitude);
+    attitude_publisher_.publish(attitude);
 
     rosflight_msgs::Command attitude_c;
     attitude_c.header.stamp = ros::Time::now();
@@ -108,7 +94,7 @@ namespace controller {
     attitude_c.x = att_vec_c(0);
     attitude_c.y = att_vec_c(1);
     attitude_c.z = att_vec_c(2);
-    debug_attitude_c.publish(attitude_c);
+    attitude_ref_publisher.publish(attitude_c);
   }
 
   void AdaptiveController::commandCallback(

@@ -57,12 +57,12 @@
   <node name="attitude_x"
         pkg="rqt_plot"
         type="rqt_plot"
-        args="/attitude_rpy/x /attitude_rpy_d/x"/>
+        args="/attitude_euler/x /attitude_ref_euler/x"/>
 
   <node name="attitude_y"
         pkg="rqt_plot"
         type="rqt_plot"
-        args="/attitude_rpy/y /attitude_rpy_d/y"/>
+        args="/attitude_euler/y /attitude_ref_euler/y"/>
 
 
 </launch>

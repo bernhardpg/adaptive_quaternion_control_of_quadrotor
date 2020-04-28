@@ -11,8 +11,12 @@ namespace controller {
         &PositionController::odomCallback, this);
     command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
         "/attitude_command", 1000);
-    debug_position_error = nh_.advertise<rosflight_msgs::Command>(
+    position_error_publisher = nh_.advertise<rosflight_msgs::Command>(
         "/position_error", 1000);
+    position_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/position", 1000);
+    position_ref_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/position_ref", 1000);
 
     std::cout << "Position controller initialized" << std::endl;
 
@@ -38,22 +42,34 @@ namespace controller {
     pos_d_(2) = -1.0; // set height
   }
 
-  void PositionController::publish_position_error()
+  void PositionController::publish_position_tracking()
   {
     rosflight_msgs::Command pos_error;
     pos_error.header.stamp = ros::Time::now();
     pos_error.x = e_pos_(0);
     pos_error.y = e_pos_(1);
     pos_error.z = e_pos_(2);
-    debug_position_error.publish(pos_error);
+    position_error_publisher.publish(pos_error);
+
+    rosflight_msgs::Command pos;
+    pos.header.stamp = ros::Time::now();
+    pos.x = pos_(0);
+    pos.y = pos_(1);
+    pos.z = pos_(2);
+    position_publisher.publish(pos);
+
+    rosflight_msgs::Command pos_d;
+    pos_d.header.stamp = ros::Time::now();
+    pos_d.x = pos_d_(0);
+    pos_d.y = pos_d_(1);
+    pos_d.z = pos_d_(2);
+    position_ref_publisher.publish(pos_d);
   }
 
   void PositionController::odomCallback(
       const nav_msgs::Odometry::ConstPtr& msg
       )
   {
-
-    // TODO replace with attitude from rosflight
     // NOTE NED frame!
     pos_ << msg->pose.pose.position.x,
             msg->pose.pose.position.y,
@@ -62,19 +78,20 @@ namespace controller {
             msg->twist.twist.linear.y,
             msg->twist.twist.linear.z;
 
+    // TODO this should come from estimator (works now because zb is equal in NED frame and body frame)
     // Attitude
     Eigen::Quaterniond q(msg->pose.pose.orientation.w,
                   msg->pose.pose.orientation.x,
                   msg->pose.pose.orientation.y,
                   msg->pose.pose.orientation.z);
     z_b_ = q.toRotationMatrix()(Eigen::all, Eigen::last);
-    //std::cout << "z vector:\n " << z_b_ << std::endl;
+    //std::cout << "z vector:\n "position_error_publisher << z_b_ << std::endl;
 
     // Controll loop
     calculateErrors();
     computeInput();
     publishCommand();
-    publish_position_error();
+    publish_position_tracking();
   }
 
   void PositionController::calculateErrors()

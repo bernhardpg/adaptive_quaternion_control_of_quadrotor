@@ -26,8 +26,8 @@ namespace controller {
       ros::Subscriber odom_subscriber_;
       ros::Subscriber attitude_command_subscriber_;
 
-      ros::Publisher debug_attitude;
-      ros::Publisher debug_attitude_c;
+      ros::Publisher attitude_publisher_;
+      ros::Publisher attitude_ref_publisher;
 
       // Signals
       // State
@@ -72,7 +72,7 @@ namespace controller {
       //Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
       //Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
 
-      void publishDebug();
+      void publish_attitude_tracking();
   };
 
   Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);

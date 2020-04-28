@@ -25,7 +25,10 @@ namespace controller{
       ros::NodeHandle nh_;
       ros::Subscriber odom_subscriber_;
       ros::Publisher command_publisher_;
-      ros::Publisher debug_position_error;
+
+      ros::Publisher position_error_publisher;
+      ros::Publisher position_publisher;
+      ros::Publisher position_ref_publisher;
 
       // Signals
       // State
@@ -53,7 +56,7 @@ namespace controller{
       void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
       double saturate(double v, double min, double max);
-      void publish_position_error();
+      void publish_position_tracking();
 
       Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
       Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
