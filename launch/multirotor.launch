@@ -62,5 +62,10 @@
         type="rqt_plot"
         args="/attitude_euler/y /attitude_ref_euler/y"/>
 
+  <node name="attitude_error"
+        pkg="rqt_plot"
+        type="rqt_plot"
+        args="/attitude_cmd_traj/"/>
+
 
 </launch>

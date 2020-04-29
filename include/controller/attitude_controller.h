@@ -31,6 +31,7 @@ namespace controller {
       ros::Publisher attitude_publisher_;
       ros::Publisher attitude_ref_publisher;
       ros::Publisher attitude_cmd_traj_publisher;
+      ros::Publisher attitude_cmd_traj_quat_publisher;
 
       // *******
       // Signals

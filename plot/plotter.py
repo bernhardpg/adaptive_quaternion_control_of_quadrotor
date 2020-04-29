@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 import sys, getopt
 import rosbag
 import numpy as np
@@ -100,19 +100,18 @@ def plot_attitude(bag_name):
     plt.plot(ts_r, roll_r)
     plt.plot(ts_cmd, roll_cmd)
     plt.ylabel('roll [rad]')
-    plt.ylim(-1, 1)
+    #plt.ylim(-0.1, 0.1)
 
     plt.subplot(2,1,2)
     plt.plot(ts, pitch)
     plt.plot(ts_r, pitch_r)
     plt.plot(ts_cmd, pitch_cmd)
     plt.ylabel('pitch [rad]')
-    plt.ylim(-1, 1)
+    #plt.ylim(-0.1, 0.1)
     plt.legend(["Actual", "Reference", "Command"])
     plt.suptitle("Attitude tracking")
     plt.show()
 
-    pdb.set_trace()
 
 
 def plot_pos_error(bag_name):
