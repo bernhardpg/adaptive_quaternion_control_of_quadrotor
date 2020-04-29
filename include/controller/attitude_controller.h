@@ -30,6 +30,7 @@ namespace controller {
 
       ros::Publisher attitude_publisher_;
       ros::Publisher attitude_ref_publisher;
+      ros::Publisher attitude_cmd_traj_publisher;
 
       // *******
       // Signals
@@ -44,6 +45,8 @@ namespace controller {
       // Reference
       // (only needs to be piecewise continuous)
       Eigen::Quaterniond q_r_;
+      Eigen::Vector3d att_ref_euler_; // radians
+      ros::Timer ref_traj_timer_;
 
       // Command
       // (generated from the reference signal)
@@ -73,7 +76,10 @@ namespace controller {
       // Functions
       // *******
       void init();
-      void generateReferenceSignal();
+      void initializeRefSignal();
+      void refSignalCallback(const ros::TimerEvent &event);
+      void generateCommandSignal();
+
       void calculateErrors();
       void computeInput();
       void publishCommand();

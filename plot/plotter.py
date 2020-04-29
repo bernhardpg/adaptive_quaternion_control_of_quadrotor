@@ -57,13 +57,17 @@ def plot_attitude(bag_name):
     bag = rosbag.Bag(bag_name)
 
     t0 = None
-    t0_d = None
+    t0_r = None
+    t0_cmd = None
     ts = []
-    t_ds = []
+    ts_r = []
+    ts_cmd = []
     roll = []
     pitch = []
-    roll_d = []
-    pitch_d = []
+    roll_r = []
+    pitch_r = []
+    roll_cmd = []
+    pitch_cmd = []
 
     for (topic, msg, timestamp) in bag.read_messages():
         if topic == '/attitude_euler':
@@ -75,23 +79,40 @@ def plot_attitude(bag_name):
             pitch.append(float(msg.y))
 
         if topic == '/attitude_ref_euler':
-            t_d = msg.header.stamp.secs + msg.header.stamp.nsecs * 10**-9
-            if t0_d == None:
-                t0_d = t_d
-            t_ds.append(t_d - t0_d)
-            roll_d.append(float(msg.x))
-            pitch_d.append(float(msg.y))
+            t_r = msg.header.stamp.secs + msg.header.stamp.nsecs * 10**-9
+            if t0_r == None:
+                t0_r = t_r
+            ts_r.append(t_r - t0_r)
+            roll_r.append(float(msg.x))
+            pitch_r.append(float(msg.y))
 
+        if topic == '/attitude_cmd_traj_euler':
+            t_cmd = msg.header.stamp.secs + msg.header.stamp.nsecs * 10**-9
+            if t0_cmd == None:
+                t0_cmd = t_cmd
+            ts_cmd.append(t_cmd - t0_cmd)
+            roll_cmd.append(float(msg.x))
+            pitch_cmd.append(float(msg.y))
 
     plt.figure(1)
     plt.subplot(2,1,1)
-    plt.plot(ts, roll, t_ds, roll_d)
+    plt.plot(ts, roll)
+    plt.plot(ts_r, roll_r)
+    plt.plot(ts_cmd, roll_cmd)
     plt.ylabel('roll [rad]')
+    plt.ylim(-1, 1)
+
     plt.subplot(2,1,2)
-    plt.plot(ts, pitch, t_ds, pitch_d)
+    plt.plot(ts, pitch)
+    plt.plot(ts_r, pitch_r)
+    plt.plot(ts_cmd, pitch_cmd)
     plt.ylabel('pitch [rad]')
+    plt.ylim(-1, 1)
+    plt.legend(["Actual", "Reference", "Command"])
     plt.suptitle("Attitude tracking")
     plt.show()
+
+    pdb.set_trace()
 
 
 def plot_pos_error(bag_name):
