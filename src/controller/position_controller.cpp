@@ -40,7 +40,7 @@ namespace controller {
 
     pos_d_(0) = 0.0;
     pos_d_(1) = 0.0;
-    pos_d_(2) = -1.0; // set height
+    pos_d_(2) = -3.0; // set height
   }
 
   void PositionController::publish_position_tracking()

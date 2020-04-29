@@ -47,7 +47,7 @@ namespace controller {
       // (only needs to be piecewise continuous)
       Eigen::Quaterniond q_r_;
       Eigen::Vector3d att_ref_euler_; // radians
-      ros::Timer ref_traj_timer_;
+      ros::Time start_time_;
 
       // Command
       // (generated from the reference signal)
@@ -77,8 +77,7 @@ namespace controller {
       // Functions
       // *******
       void init();
-      void initializeRefSignal();
-      void refSignalCallback(const ros::TimerEvent &event);
+      void refSignalCallback();
       void generateCommandSignal();
 
       void calculateErrors();
