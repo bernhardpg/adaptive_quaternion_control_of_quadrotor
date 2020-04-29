@@ -4,9 +4,8 @@ namespace controller {
   AdaptiveController::AdaptiveController(ros::NodeHandle *nh)
     : nh_(*nh)
   {
-    AdaptiveController::init();
+    init();
 
-    // TODO change to subscribe to /attitude published by rosflight
     odom_subscriber_ = nh_.subscribe("/attitude", 1000,
         &AdaptiveController::odomCallback, this);
     attitude_command_subscriber_ = nh_.subscribe("/attitude_command", 1000,
@@ -18,18 +17,30 @@ namespace controller {
         "/attitude_euler", 1000);
     attitude_ref_publisher = nh_.advertise<rosflight_msgs::Command>(
         "/attitude_ref_euler", 1000);
+    attitude_cmd_traj_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/attitude_cmd_traj_euler", 1000);
+    w_c_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/w_c", 1000);
 
+    w_bc_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/w_bc", 1000);
+
+    attitude_cmd_traj_quat_publisher = nh_.advertise<rosflight_msgs::Attitude>(
+        "/attitude_cmd_traj", 1000);
 
     std::cout << "Attitude controller initialized" << std::endl;
-
-
   }
 
   void AdaptiveController::init()
   {
+    while (ros::Time::now() == ros::Time(0)); // Make sure time is published
+    start_time_ = ros::Time::now();
+
+    time_step_ = pow(10, -3); // Taken from simulation
+
     // Controller params
-    k_q_ = 30;
-    k_w_ = 7;
+    k_q_ = 2.0;
+    k_w_ = 5.0;
 
     // Initialize model parameters
     double max_rotor_thrust = 14.961;
@@ -46,22 +57,39 @@ namespace controller {
     q_e_ = Eigen::Quaterniond::Identity();
     w_bc_ = Eigen::Vector3d::Zero();
 
-    // Set command signal
+    // Set initial values for command trajectory:
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
+    w_c_body_frame = Eigen::Vector3d::Zero();
+    w_c_dot_body_frame = Eigen::Vector3d::Zero();
 
-    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
-    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+    q_r_ = controller::EulerToQuat(0,0,0);
+
   }
 
-    //
+  void AdaptiveController::refSignalCallback()
+  {
+    if (ros::Time::now() - start_time_ <= ros::Duration(5.0))
+    {
+      stabilize_curr_pos_ = true;
+    }
+    /*else if (ros::Time::now() - start_time_ <= ros::Duration(5.2))
+    {
+      stabilize_curr_pos_ = false;
+      att_ref_euler_ << 0.05, 0.0, 0.0;
+      q_r_ = controller::EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
+    }*/
+    else
+    {
+      stabilize_curr_pos_ = true;
+    }
+  }
+
   void AdaptiveController::odomCallback(
-      //const nav_msgs::Odometry::ConstPtr &msg
       const rosflight_msgs::Attitude::ConstPtr &msg
       )
   {
-
     q_ = Eigen::Quaterniond(msg->attitude.w,
                             msg->attitude.x,
                             msg->attitude.y,
@@ -72,46 +100,54 @@ namespace controller {
           msg->angular_velocity.z;
 
     // Controll loop
+    refSignalCallback();
+    generateCommandSignal();
     calculateErrors();
     computeInput();
     publishCommand();
     publish_attitude_tracking();
   }
 
-  void AdaptiveController::publish_attitude_tracking()
-  {
-    rosflight_msgs::Command attitude;
-    attitude.header.stamp = ros::Time::now();
-    Eigen::Vector3d att_vec = controller::QuatToEuler(q_);
-    attitude.x = att_vec(0);
-    attitude.y = att_vec(1);
-    attitude.z = att_vec(2);
-    attitude_publisher_.publish(attitude);
-
-    rosflight_msgs::Command attitude_c;
-    attitude_c.header.stamp = ros::Time::now();
-    Eigen::Vector3d att_vec_c = controller::QuatToEuler(q_c_);
-    attitude_c.x = att_vec_c(0);
-    attitude_c.y = att_vec_c(1);
-    attitude_c.z = att_vec_c(2);
-    attitude_ref_publisher.publish(attitude_c);
-  }
-
   void AdaptiveController::commandCallback(
       const rosflight_msgs::Command::ConstPtr& msg
       )
   {
+    // Feedforward input thrust
     input_.F = msg->F;
 
-    //double x = 0.15 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.4);
-    //double y = 0.3 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.5);
-    /*
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0;
-    q_c_ = EulerToQuat(z, y, x);*/
-    
-    q_c_ = controller::EulerToQuat(msg->z, msg->y, msg->x);
+    // Save desired angles to reference signal
+    if (stabilize_curr_pos_)
+      q_r_ = controller::EulerToQuat(msg->z, msg->y, msg->x);
+  }
+
+  void AdaptiveController::generateCommandSignal()
+  {
+    double w_0 = 10.0; // Bandwidth
+    double D = 1.0; // Damping
+
+    // Difference between reference and command frame
+    Eigen::Quaterniond q_rc = q_r_.conjugate() * q_c_;
+
+    // Create quaternion from vector to make math work
+    Eigen::Quaterniond w_c_quat;
+    w_c_quat.w() = 0;
+    w_c_quat.vec() = 0.5 * w_c_;
+
+    // Define derivatives
+    Eigen::Quaterniond q_c_dot = q_c_ * w_c_quat;
+    w_c_dot_ = - 2 * pow(w_0, 2) * quat_log_v(quat_plus_map(q_rc))
+      - 2 * D * w_0 * w_c_;
+    // Note: w_c_dot_ = u_c in the paper
+
+    // Integrate using forward Euler:
+    q_c_.w() = q_c_.w() + time_step_ * q_c_dot.w();
+    q_c_.vec() = q_c_.vec() + time_step_ * q_c_dot.vec();
+    w_c_ = w_c_ + time_step_ * w_c_dot_;
+
+
+    // Calculate body frame values
+    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
+    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
   }
 
   void AdaptiveController::calculateErrors()
@@ -120,9 +156,8 @@ namespace controller {
     q_e_ = q_c_.conjugate() * q_;
     // Calculate angular velocity error
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
+    //std::cout << w_bc_ << std::endl << std::endl;
   }
-
-
 
   void AdaptiveController::computeInput()
   {
@@ -135,12 +170,6 @@ namespace controller {
     Eigen::Vector3d feedforward_terms = J_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
 
     input_.tau = cancellation_terms + feedforward_terms;
-    /*
-    std::cout << "F: " << saturate(input_.F / max_thrust_, 0, 1) << std::endl;
-    std::cout << "input_tau:\n" << saturate(input_.tau(0) / max_torque_, 0, 1) << std::endl
-      << saturate(input_.tau(1) / max_torque_, 0, 1) << std::endl
-      << saturate(input_.tau(2) / 3, 0, 1) << std::endl;
-      */
   }
 
   void AdaptiveController::publishCommand()
@@ -159,10 +188,65 @@ namespace controller {
     command_publisher_.publish(command);
   }
 
+
+  // ***********************
+  // Publish for plotting
+  // ***********************
+  void AdaptiveController::publish_attitude_tracking()
+  {
+    rosflight_msgs::Command attitude;
+    attitude.header.stamp = ros::Time::now();
+    Eigen::Vector3d att_vec = controller::QuatToEuler(q_);
+    attitude.x = att_vec(0);
+    attitude.y = att_vec(1);
+    attitude.z = att_vec(2);
+    attitude_publisher_.publish(attitude);
+
+    rosflight_msgs::Command attitude_ref;
+    attitude_ref.header.stamp = ros::Time::now();
+    attitude_ref.x = att_ref_euler_(0);
+    attitude_ref.y = att_ref_euler_(1);
+    attitude_ref.z = att_ref_euler_(2);
+    attitude_ref_publisher.publish(attitude_ref);
+
+    rosflight_msgs::Command attitude_cmd_traj;
+    attitude_cmd_traj.header.stamp = ros::Time::now();
+    Eigen::Vector3d att_cmd_traj_vec = controller::QuatToEuler(q_c_);
+    attitude_cmd_traj.x = att_cmd_traj_vec(0);
+    attitude_cmd_traj.y = att_cmd_traj_vec(1);
+    attitude_cmd_traj.z = att_cmd_traj_vec(2);
+    attitude_cmd_traj_publisher.publish(attitude_cmd_traj);
+
+    rosflight_msgs::Attitude attitude_cmd_traj_quat;
+    attitude_cmd_traj_quat.header.stamp = ros::Time::now();
+    attitude_cmd_traj_quat.attitude.x = q_e_.x();
+    attitude_cmd_traj_quat.attitude.y = q_e_.y();
+    attitude_cmd_traj_quat.attitude.z = q_e_.z();
+    attitude_cmd_traj_quat.attitude.w = q_e_.w();
+    attitude_cmd_traj_quat_publisher.publish(attitude_cmd_traj_quat);
+
+    rosflight_msgs::Command w_c_msg;
+    w_c_msg.header.stamp = ros::Time::now();
+    w_c_msg.x = w_c_(0);
+    w_c_msg.y = w_c_(1);
+    w_c_msg.z = w_c_(2);
+    w_c_msg_publisher.publish(w_c_msg);
+
+    rosflight_msgs::Command w_bc_msg;
+    w_bc_msg.header.stamp = ros::Time::now();
+    w_bc_msg.x = w_bc_(0);
+    w_bc_msg.y = w_bc_(1);
+    w_bc_msg.z = w_bc_(2);
+    w_bc_msg_publisher.publish(w_bc_msg);
+  }
+
+  // *********
+  // Utilities
+  // *********
   double AdaptiveController::saturate(double v, double min, double max)
   {
     v = v > max ? max : (
-        v < min ? min : v 
+        v < min ? min : v
         );
 
     return v;
@@ -183,7 +267,6 @@ namespace controller {
   {
     Eigen::Vector3d v;
     v << v_hat(2,1), v_hat(0,2), v_hat(0,1);
-    k_q_ = 1.0;
     return v;
   }
 
@@ -200,6 +283,7 @@ namespace controller {
     return q.w() >= 0 ? q : Eigen::Quaterniond(-q.w(), q.x(), q.y(), q.z());
   }
 
+  // TODO Change order ehre! wtf
   Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll)
     // yaw (Z), pitch (Y), roll (X)
   {
@@ -241,7 +325,7 @@ namespace controller {
     euler(2) = std::atan2(siny_cosp, cosy_cosp);
 
     return euler;
-  } 
+  }
 
 } // namespace controller
 
