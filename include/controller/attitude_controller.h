@@ -20,7 +20,9 @@ namespace controller {
     public:
       AdaptiveController(ros::NodeHandle *nh);
     private:
+      // *******
       // ROS
+      // *******
       ros::NodeHandle nh_;
       ros::Publisher command_publisher_;
       ros::Subscriber odom_subscriber_;
@@ -29,32 +31,49 @@ namespace controller {
       ros::Publisher attitude_publisher_;
       ros::Publisher attitude_ref_publisher;
 
+      // *******
       // Signals
+      // *******
       // State
       Eigen::Quaterniond q_; // Rotation from body to inertial frame
       Eigen::Vector3d w_; // Angular velocity between body and inertial frame
+
       // Errors
       Eigen::Quaterniond q_e_; // From body to command frame
       Eigen::Vector3d w_bc_; // Between body and command frame, given in body frame
+      // Reference
+      // (only needs to be piecewise continuous)
+      Eigen::Quaterniond q_r_;
+
       // Command
+      // (generated from the reference signal)
       Eigen::Quaterniond q_c_;
       Eigen::Vector3d w_c_; // Given in command frame
-      Eigen::Vector3d w_c_body_frame;
       Eigen::Vector3d w_c_dot_;
+      Eigen::Vector3d w_c_body_frame;
       Eigen::Vector3d w_c_dot_body_frame;
 
+
+      // *******
       // Model parameters
+      // *******
       double max_thrust_;
       double max_torque_;
       Eigen::Matrix3d J_; // Inertia matrix
 
+      // *******
       // Controller
+      // *******
       input_t input_;
       double k_q_;
       double k_w_;
+      double time_step_;
 
+      // *******
       // Functions
+      // *******
       void init();
+      void generateReferenceSignal();
       void calculateErrors();
       void computeInput();
       void publishCommand();

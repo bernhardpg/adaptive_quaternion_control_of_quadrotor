@@ -33,11 +33,9 @@
     <arg name="param_file" value="$(find rosflight_sim)/params/multirotor.yaml"/>
   </include>
 
-  <node name="rosflight_io"
-        pkg="rosflight"
-        type="rosflight_io"
-        args="_udp:=True"
-        output="screen" launch-prefix="gnome-terminal -e "/>
+  <node name="rosflight_io" pkg="rosflight" type="rosflight_io" output="screen">
+    <param name="udp" value="true"/>
+  </node>
 
   <node name="position_controller"
         pkg="adaptive_attitude_controller"

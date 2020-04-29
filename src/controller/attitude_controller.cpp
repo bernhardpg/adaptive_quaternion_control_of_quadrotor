@@ -19,10 +19,7 @@ namespace controller {
     attitude_ref_publisher = nh_.advertise<rosflight_msgs::Command>(
         "/attitude_ref_euler", 1000);
 
-
     std::cout << "Attitude controller initialized" << std::endl;
-
-
   }
 
   void AdaptiveController::init()
@@ -45,23 +42,20 @@ namespace controller {
     w_ = Eigen::Vector3d::Zero();
     q_e_ = Eigen::Quaterniond::Identity();
     w_bc_ = Eigen::Vector3d::Zero();
+    time_step_ = 0.0;
 
-    // Set command signal
+    // Set initial values for command trajectory
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
-
-    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
-    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+    w_c_body_frame = Eigen::Vector3d::Zero();
+    w_c_dot_body_frame = Eigen::Vector3d::Zero();
   }
 
-    //
   void AdaptiveController::odomCallback(
-      //const nav_msgs::Odometry::ConstPtr &msg
       const rosflight_msgs::Attitude::ConstPtr &msg
       )
   {
-
     q_ = Eigen::Quaterniond(msg->attitude.w,
                             msg->attitude.x,
                             msg->attitude.y,
@@ -78,6 +72,91 @@ namespace controller {
     publish_attitude_tracking();
   }
 
+  void AdaptiveController::commandCallback(
+      const rosflight_msgs::Command::ConstPtr& msg
+      )
+  {
+    // Feedforward input thrust
+    input_.F = msg->F;
+
+    //double x = 0.15 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.4);
+    //double y = 0.3 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.5);
+    //q_c_ = EulerToQuat(z, y, x);
+
+    // Save desired angles to reference signal
+    q_r_ = controller::EulerToQuat(0, 0, 0);
+  }
+
+  void AdaptiveController::generateReferenceSignal()
+  {
+    double w_0 = 1.0; // Bandwidth
+    double D = 2.0; // Damping
+
+    // Difference between reference and command frame
+    Eigen::Quaterniond q_rc = q_r_.conjugate() * q_c_;
+
+    // Create quaternion from vector to make math work
+    Eigen::Quaterniond w_c_quat;
+    w_c_quat.w() = 0;
+    w_c_quat.vec() = 0.5 * w_c_;
+
+    // Define derivatives
+    Eigen::Quaterniond q_c_dot = q_c_ * w_c_quat;
+    w_c_dot_ = - 2 * pow(w_0, 2) * quat_log_v(q_rc)
+      - 2 * D * w_0 * w_c_;
+    // Note: w_c_dot_ = u_c in the paper
+
+    // Integrate using forward Euler:
+    q_c_.w() = q_c_.w() + time_step_ * q_c_dot.w();
+    q_c_.vec() = q_c_.vec() + time_step_ * q_c_dot.vec();
+    w_c_ = w_c_ + time_step_ * w_c_dot_;
+
+    // Calculate body frame values
+    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
+    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+  }
+
+  void AdaptiveController::calculateErrors()
+  {
+    // Calulate attitude error
+    q_e_ = q_c_.conjugate() * q_;
+    // Calculate angular velocity error
+    w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
+  }
+
+  void AdaptiveController::computeInput()
+  {
+    // Calculates inputs for the NED frame!
+    // Baseline controller
+    Eigen::Vector3d cancellation_terms = cross_map(w_) * J_ * w_
+      + J_ * (w_c_dot_body_frame
+          + cross_map(w_) * w_c_body_frame);
+
+    Eigen::Vector3d feedforward_terms = J_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
+
+    input_.tau = cancellation_terms + feedforward_terms;
+  }
+
+  void AdaptiveController::publishCommand()
+  {
+    rosflight_msgs::Command command;
+    command.header.stamp = ros::Time::now();
+    //command.mode = rosflight_msgs::Command::MODE_ROLL_PITCH_YAWRATE_THROTTLE;
+    command.mode = rosflight_msgs::Command::MODE_PASS_THROUGH;
+
+    command.F = saturate(input_.F / max_thrust_, 0, 1);
+    // Defined in NED frame by ROSflight
+    command.x = saturate(input_.tau(0) / max_torque_, -1, 1);
+    command.y = saturate(input_.tau(1) / max_torque_, -1, 1);
+    command.z = saturate(input_.tau(2) / 3, -1, 1); // TODO change with real z max torque
+
+    command_publisher_.publish(command);
+  }
+
+
+  // ***********************
+  // Publish for plotting
+  // ***********************
   void AdaptiveController::publish_attitude_tracking()
   {
     rosflight_msgs::Command attitude;
@@ -97,68 +176,10 @@ namespace controller {
     attitude_ref_publisher.publish(attitude_c);
   }
 
-  void AdaptiveController::commandCallback(
-      const rosflight_msgs::Command::ConstPtr& msg
-      )
-  {
-    input_.F = msg->F;
 
-    //double x = 0.15 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.4);
-    //double y = 0.3 * sin(ros::Time::now().toSec() * 2 * M_PI * 0.5);
-    /*
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0;
-    q_c_ = EulerToQuat(z, y, x);*/
-    
-    q_c_ = controller::EulerToQuat(msg->z, msg->y, msg->x);
-  }
-
-  void AdaptiveController::calculateErrors()
-  {
-    // Calulate attitude error
-    q_e_ = q_c_.conjugate() * q_;
-    // Calculate angular velocity error
-    w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
-  }
-
-
-
-  void AdaptiveController::computeInput()
-  {
-    // Calculates inputs for the NED frame!
-    // Baseline controller
-    Eigen::Vector3d cancellation_terms = cross_map(w_) * J_ * w_
-      + J_ * (w_c_dot_body_frame
-          + cross_map(w_) * w_c_body_frame);
-
-    Eigen::Vector3d feedforward_terms = J_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
-
-    input_.tau = cancellation_terms + feedforward_terms;
-    /*
-    std::cout << "F: " << saturate(input_.F / max_thrust_, 0, 1) << std::endl;
-    std::cout << "input_tau:\n" << saturate(input_.tau(0) / max_torque_, 0, 1) << std::endl
-      << saturate(input_.tau(1) / max_torque_, 0, 1) << std::endl
-      << saturate(input_.tau(2) / 3, 0, 1) << std::endl;
-      */
-  }
-
-  void AdaptiveController::publishCommand()
-  {
-    rosflight_msgs::Command command;
-    command.header.stamp = ros::Time::now();
-    //command.mode = rosflight_msgs::Command::MODE_ROLL_PITCH_YAWRATE_THROTTLE;
-    command.mode = rosflight_msgs::Command::MODE_PASS_THROUGH;
-
-    command.F = saturate(input_.F / max_thrust_, 0, 1);
-    // Defined in NED frame by ROSflight
-    command.x = saturate(input_.tau(0) / max_torque_, -1, 1);
-    command.y = saturate(input_.tau(1) / max_torque_, -1, 1);
-    command.z = saturate(input_.tau(2) / 3, -1, 1); // TODO change with real z max torque
-
-    command_publisher_.publish(command);
-  }
-
+  // *********
+  // Utilities
+  // *********
   double AdaptiveController::saturate(double v, double min, double max)
   {
     v = v > max ? max : (
