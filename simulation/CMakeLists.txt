@@ -29,6 +29,7 @@ target_link_libraries(${PROJECT_NAME} plotter)
 
 add_library(dynamics src/dynamics/dynamics.cpp)
 target_link_libraries(dynamics Eigen3::Eigen)
+target_link_libraries(dynamics attitude_controller)
 target_link_libraries(dynamics plotter)
 
 add_library(attitude_controller src/controller/attitude_controller.cpp)

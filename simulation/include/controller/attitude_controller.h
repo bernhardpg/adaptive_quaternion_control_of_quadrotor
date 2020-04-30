@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <cmath>
@@ -16,6 +17,10 @@ namespace controller {
   {
     public:
       AdaptiveController();
+
+			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
+			Eigen::Vector3d getInputTorques();
+
     private:
 			double t_;
 
@@ -64,7 +69,6 @@ namespace controller {
       void init();
       void refSignalCallback();
       void generateCommandSignal();
-			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
       void calculateErrors();
       void computeInput();
 

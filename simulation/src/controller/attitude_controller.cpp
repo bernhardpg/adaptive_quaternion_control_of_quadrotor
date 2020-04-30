@@ -52,8 +52,17 @@ namespace controller {
     computeInput();
   }
 
+	Eigen::Vector3d AdaptiveController::getInputTorques()
+	{
+		return input_.tau;
+	}
+
   void AdaptiveController::refSignalCallback()
   {
+    w_c_ << 0,0,0;
+    w_c_dot_ << 0,0,0;
+		q_c_ = Eigen::Quaterniond(1,0,0,0);
+
 		/*
     if (ros::Time::now() - start_time_ <= ros::Duration(5.0))
     {
