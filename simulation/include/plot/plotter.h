@@ -4,7 +4,12 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include "plot/matplotlibcpp.h"
+#include "tools/quat.h"
 
 namespace plt = matplotlibcpp;
 
-void plot_state(Eigen::VectorX<Eigen::Quaterniond> qs, Eigen::VectorX<Eigen::Vector3d> ws);
+void plot_state(
+		Eigen::VectorX<Eigen::Quaterniond> qs,
+		Eigen::VectorX<Eigen::Vector3d> ws,
+		std::vector<double> ts
+		);

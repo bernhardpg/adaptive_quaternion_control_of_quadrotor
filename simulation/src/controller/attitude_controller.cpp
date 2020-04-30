@@ -37,7 +37,6 @@ namespace controller {
     w_c_dot_body_frame = Eigen::Vector3d::Zero();
 
     q_r_ = EulerToQuat(0,0,0);
-
   }
 
   void AdaptiveController::controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t)

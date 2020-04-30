@@ -1,5 +1,6 @@
 #include "dynamics/dynamics.h"
-#include "controller/attitude_controller.h"
+//#include "controller/attitude_controller.h"
+#include "plot/plotter.h"
 
 void simulate()
 {
@@ -13,16 +14,17 @@ void simulate()
 				0, 0, 0.12; // From .urdf file
 
 	// Initial values
-	Eigen::Quaterniond q(0,0,0,0);
-	Eigen::Quaterniond q_dot(0,0,0,0);
+	Eigen::Quaterniond q(1,0,0,0);
+	Eigen::Quaterniond q_dot;
 	Eigen::Vector3d w(0,0,0);
-	Eigen::Vector3d w_dot(0,0,0);
+	Eigen::Vector3d w_dot;
 
-	Eigen::Vector3d tau_ext(0,0,0);
+	Eigen::Vector3d tau_ext(0.5,0,0);
 
 	// Store values
 	Eigen::VectorX<Eigen::Quaterniond> qs(N);
 	Eigen::VectorX<Eigen::Vector3d> ws(N);
+	std::vector<double> ts;
 
 	// ************
 	// Simulate dynamics
@@ -32,6 +34,7 @@ void simulate()
 	for (int i = 0; i < N; ++i)
 	{
 		t += h;
+		ts.push_back(t);
 
 		//Calculate derivatives
 		Eigen::Quaterniond w_quat;
@@ -48,4 +51,8 @@ void simulate()
 		qs(i) = q;
 		ws(i) = w;
 	}
+
+
+	plot_state(qs, ws, ts);
+
 }

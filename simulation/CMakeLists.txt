@@ -15,23 +15,28 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 find_package(Python3 COMPONENTS Development NumPy)
+include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # add include directory
 include_directories(include)
-include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # add executables
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} dynamics)
+target_link_libraries(${PROJECT_NAME} plotter)
 
 add_library(dynamics src/dynamics/dynamics.cpp)
 target_link_libraries(dynamics Eigen3::Eigen)
+target_link_libraries(dynamics plotter)
 
 add_library(attitude_controller src/controller/attitude_controller.cpp)
 target_link_libraries(attitude_controller Eigen3::Eigen)
-target_link_libraries(attitude_controller quat)
+target_link_libraries(attitude_controller quat_tools)
 
-add_library(quat src/tools/quat.cpp)
-target_link_libraries(quat Eigen3::Eigen)
+add_library(quat_tools src/tools/quat.cpp)
+target_link_libraries(quat_tools Eigen3::Eigen)
+
+add_library(plotter src/plot/plotter.cpp)
+target_link_libraries(plotter quat_tools)

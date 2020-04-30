@@ -1,8 +1,36 @@
 #include "plot/plotter.h"
 
-void plot_state(Eigen::VectorX<Eigen::Quaterniond> qs, Eigen::VectorX<Eigen::Vector3d> ws)
+void plot_state(
+		Eigen::VectorX<Eigen::Quaterniond> qs,
+		Eigen::VectorX<Eigen::Vector3d> ws,
+		std::vector<double> ts
+		)
 {
 	std::cout << "plotting!" << std::endl;
+
+	std::vector<double> roll, pitch, yaw;
+
+	// Convert quaternions to euler angles
+	for (int i = 0; i < qs.size(); ++i)
+	{
+		Eigen::Vector3d euler = QuatToEuler(qs(i));
+		roll.push_back(euler(0));
+		pitch.push_back(euler(1));
+		yaw.push_back(euler(2));
+	}
+
+	plt::plot(ts, roll);
+	plt::title("Roll");
+	plt::show();
+
+	plt::plot(ts, pitch);
+	plt::title("Pitch");
+	plt::show();
+
+	plt::plot(ts, yaw);
+	plt::title("Yaw");
+	plt::show();
+
 }
 
 /*
