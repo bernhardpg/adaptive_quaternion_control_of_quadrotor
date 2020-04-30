@@ -1,11 +1,31 @@
 #include "dynamics/dynamics.h"
-#include "controller/attitude_controller.h"
-#include "plot/plotter.h"
+
+Eigen::Vector3d get_ref_signal(double t)
+{
+	Eigen::Vector3d ref;
+
+	if (t < 3)
+		ref << 0, 0, 0;
+	else if (t < 4)
+		ref << 0.3, 0, 0;
+	else if (t < 8)
+		ref << 0, 0, 0;
+	else if (t < 10)
+		ref << -0.3, 0, 0;
+	else if (t < 15)
+		ref << 0,0,0;
+	else if (t < 16)
+		ref << 0,0.3,0;
+	else
+		ref << 0,0,0;
+
+	return ref;
+}
 
 void simulate()
 {
 	double h = pow(10, -3);
-	int T = 100; // s, end time
+	int T = 20; // s, end time
 	int N = T / h; // Number of time steps
 
 	Eigen::Matrix3d J;
@@ -14,7 +34,7 @@ void simulate()
 				0, 0, 0.12; // From .urdf file
 
 	// Initial values
-	Eigen::Quaterniond q = EulerToQuat(0, 0.2, 0.2);
+	Eigen::Quaterniond q = EulerToQuat(0, 0, 0);
 	Eigen::Quaterniond q_dot;
 	Eigen::Vector3d w(0,0,0);
 	Eigen::Vector3d w_dot;
@@ -25,6 +45,9 @@ void simulate()
 	Eigen::VectorX<Eigen::Quaterniond> qs(N);
 	Eigen::VectorX<Eigen::Vector3d> ws(N);
 	std::vector<double> ts;
+
+	Eigen::VectorX<Eigen::Quaterniond> cmds(N);
+	Eigen::VectorX<Eigen::Vector3d> refs(N);
 
 	controller::AdaptiveController controller;
 
@@ -37,6 +60,10 @@ void simulate()
 	{
 		t += h;
 		ts.push_back(t);
+
+		// Send current reference signal to controller
+		Eigen::Vector3d ref = get_ref_signal(t);
+		controller.setRefSignal(EulerToQuat(ref));
 
 		// Calculate control input
 		controller.controllerCallback(q, w, t);
@@ -57,7 +84,10 @@ void simulate()
 
 		qs(i) = q;
 		ws(i) = w;
+		cmds(i) = controller.getCmdSignal();
+		refs(i) = ref;
 	}
 
-	plot_state(qs, ws, ts);
+	plot_attitude(qs, refs, ts);
+	//plot_cmd(cmds, refs, ts);
 }

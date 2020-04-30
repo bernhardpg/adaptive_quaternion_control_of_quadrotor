@@ -31,6 +31,29 @@ Eigen::Quaterniond quat_plus_map(Eigen::Quaterniond q)
 	return q.w() >= 0 ? q : Eigen::Quaterniond(-q.w(), q.x(), q.y(), q.z());
 }
 
+Eigen::Quaterniond EulerToQuat(Eigen::Vector3d euler)
+{
+	double roll = euler(0);
+	double pitch = euler(1);
+	double yaw = euler(2);
+
+	// Abbreviations for the various angular functions
+	double cy = cos(yaw * 0.5);
+	double sy = sin(yaw * 0.5);
+	double cp = cos(pitch * 0.5);
+	double sp = sin(pitch * 0.5);
+	double cr = cos(roll * 0.5);
+	double sr = sin(roll * 0.5);
+
+	Eigen::Quaterniond q;
+	q.w() = cr * cp * cy + sr * sp * sy;
+	q.x() = sr * cp * cy - cr * sp * sy;
+	q.y() = cr * sp * cy + sr * cp * sy;
+	q.z() = cr * cp * sy - sr * sp * cy;
+
+	return q;
+}
+
 // TODO Change order ehre! wtf
 Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll)
 	// yaw (Z), pitch (Y), roll (X)

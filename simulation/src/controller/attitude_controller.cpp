@@ -15,10 +15,6 @@ namespace controller {
     k_w_ = 5.0;
 
     // Initialize model parameters
-    double max_rotor_thrust = 14.961;
-    double arm_length = 0.2;
-    max_thrust_ = max_rotor_thrust * 4; // From orgazebo sim, 4 rotor
-    max_torque_ = arm_length * max_rotor_thrust * 2;
     J_ << 0.07, 0, 0,
           0, 0.08, 0,
           0, 0, 0.12; // From .urdf file
@@ -36,6 +32,10 @@ namespace controller {
     w_c_body_frame = Eigen::Vector3d::Zero();
     w_c_dot_body_frame = Eigen::Vector3d::Zero();
 
+    q_c_ = Eigen::Quaterniond(1,0,0,0);
+    w_c_ = Eigen::Vector3d::Zero();
+    w_c_dot_ = Eigen::Vector3d::Zero();
+
     q_r_ = EulerToQuat(0,0,0);
   }
 
@@ -46,44 +46,30 @@ namespace controller {
     w_ = Eigen::Vector3d(w);
 
     // Controll loop
-    refSignalCallback();
-    //generateCommandSignal();
+    generateCommandSignal();
     calculateErrors();
     computeInput();
   }
+
+	void AdaptiveController::setRefSignal(Eigen::Quaterniond q_ref)
+	{
+		q_r_ = q_ref;
+	}
 
 	Eigen::Vector3d AdaptiveController::getInputTorques()
 	{
 		return input_.tau;
 	}
 
-  void AdaptiveController::refSignalCallback()
-  {
-    w_c_ << 0,0,0;
-    w_c_dot_ << 0,0,0;
-		q_c_ = Eigen::Quaterniond(1,0,0,0);
-
-		/*
-    if (ros::Time::now() - start_time_ <= ros::Duration(5.0))
-    {
-      stabilize_curr_pos_ = true;
-    }
-    else if (ros::Time::now() - start_time_ <= ros::Duration(5.2))
-    {
-      stabilize_curr_pos_ = false;
-      att_ref_euler_ << 0.05, 0.0, 0.0;
-      q_r_ = EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
-    }
-    else
-    {
-      stabilize_curr_pos_ = true;
-    }*/
-  }
+	Eigen::Quaterniond AdaptiveController::getCmdSignal()
+	{
+		return q_c_;
+	}
 
 
   void AdaptiveController::generateCommandSignal()
   {
-    double w_0 = 10.0; // Bandwidth
+    double w_0 = 30.0; // Bandwidth
     double D = 1.0; // Damping
 
     // Difference between reference and command frame
@@ -106,8 +92,8 @@ namespace controller {
     w_c_ = w_c_ + time_step_ * w_c_dot_;
 
     // Calculate body frame values
-    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
-    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+    //w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
+    //w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
   }
 
   void AdaptiveController::calculateErrors()

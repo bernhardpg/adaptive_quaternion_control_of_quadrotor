@@ -8,8 +8,13 @@
 
 namespace plt = matplotlibcpp;
 
-void plot_state(
+void plot_attitude(
 		Eigen::VectorX<Eigen::Quaterniond> qs,
-		Eigen::VectorX<Eigen::Vector3d> ws,
+		Eigen::VectorX<Eigen::Vector3d> refs,
+		std::vector<double> ts
+		);
+
+void plot_cmd(
+		Eigen::VectorX<Eigen::Quaterniond> cmds,
 		std::vector<double> ts
 		);

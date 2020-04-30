@@ -1,14 +1,13 @@
 #include "plot/plotter.h"
 
-void plot_state(
+void plot_attitude(
 		Eigen::VectorX<Eigen::Quaterniond> qs,
-		Eigen::VectorX<Eigen::Vector3d> ws,
+		Eigen::VectorX<Eigen::Vector3d> refs,
 		std::vector<double> ts
 		)
 {
-	std::cout << "plotting!" << std::endl;
-
 	std::vector<double> roll, pitch, yaw;
+	std::vector<double> ref_roll, ref_pitch, ref_yaw;
 
 	// Convert quaternions to euler angles
 	for (int i = 0; i < qs.size(); ++i)
@@ -17,20 +16,65 @@ void plot_state(
 		roll.push_back(euler(0));
 		pitch.push_back(euler(1));
 		yaw.push_back(euler(2));
+
+		ref_roll.push_back(refs(i)(0));
+		ref_pitch.push_back(refs(i)(1));
+		ref_yaw.push_back(refs(i)(2));
 	}
 
 	plt::plot(ts, roll);
+	plt::plot(ts, ref_roll);
 	plt::title("Roll");
 	plt::show();
 
 	plt::plot(ts, pitch);
+	plt::plot(ts, ref_pitch);
 	plt::title("Pitch");
 	plt::show();
 
 	plt::plot(ts, yaw);
+	plt::plot(ts, ref_yaw);
 	plt::title("Yaw");
 	plt::show();
 
+}
+
+void plot_cmd(
+		Eigen::VectorX<Eigen::Quaterniond> cmds,
+		Eigen::VectorX<Eigen::Vector3d> refs,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> roll, pitch, yaw;
+	std::vector<double> ref_roll, ref_pitch, ref_yaw;
+
+	// Convert quaternions to euler angles
+	for (int i = 0; i < cmds.size(); ++i)
+	{
+		Eigen::Vector3d euler = QuatToEuler(cmds(i));
+		roll.push_back(euler(0));
+		pitch.push_back(euler(1));
+		yaw.push_back(euler(2));
+
+		ref_roll.push_back(refs(i)(0));
+		ref_pitch.push_back(refs(i)(1));
+		ref_yaw.push_back(refs(i)(2));
+	}
+
+	plt::plot(ts, roll);
+	plt::plot(ts, ref_roll);
+	plt::title("Roll command");
+	plt::show();
+
+	plt::plot(ts, pitch);
+	plt::plot(ts, ref_pitch);
+	plt::title("Pitch command");
+	plt::show();
+
+	plt::plot(ts, yaw);
+	plt::plot(ts, ref_yaw);
+	plt::title("Yaw command");
+	plt::show();
 }
 
 /*

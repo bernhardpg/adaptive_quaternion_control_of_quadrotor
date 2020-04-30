@@ -20,6 +20,8 @@ namespace controller {
 
 			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
 			Eigen::Vector3d getInputTorques();
+			Eigen::Quaterniond getCmdSignal();
+			void setRefSignal(Eigen::Quaterniond q_ref);
 
     private:
 			double t_;
@@ -67,7 +69,6 @@ namespace controller {
       // Functions
       // *******
       void init();
-      void refSignalCallback();
       void generateCommandSignal();
       void calculateErrors();
       void computeInput();
