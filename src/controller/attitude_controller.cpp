@@ -19,6 +19,12 @@ namespace controller {
         "/attitude_ref_euler", 1000);
     attitude_cmd_traj_publisher = nh_.advertise<rosflight_msgs::Command>(
         "/attitude_cmd_traj_euler", 1000);
+    w_c_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/w_c", 1000);
+
+    w_bc_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
+        "/w_bc", 1000);
+
     attitude_cmd_traj_quat_publisher = nh_.advertise<rosflight_msgs::Attitude>(
         "/attitude_cmd_traj", 1000);
 
@@ -33,8 +39,8 @@ namespace controller {
     time_step_ = pow(10, -3); // Taken from simulation
 
     // Controller params
-    k_q_ = 1.0;
-    k_w_ = 1.0;
+    k_q_ = 2.0;
+    k_w_ = 5.0;
 
     // Initialize model parameters
     double max_rotor_thrust = 14.961;
@@ -64,20 +70,19 @@ namespace controller {
 
   void AdaptiveController::refSignalCallback()
   {
-    if (ros::Time::now() - start_time_ <= ros::Duration(3.0))
+    if (ros::Time::now() - start_time_ <= ros::Duration(5.0))
     {
-      att_ref_euler_ << 0.00, 0.0, 0.0;
-      q_r_ = controller::EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
+      stabilize_curr_pos_ = true;
     }
-    else if (ros::Time::now() - start_time_ <= ros::Duration(3.5))
+    /*else if (ros::Time::now() - start_time_ <= ros::Duration(5.2))
     {
+      stabilize_curr_pos_ = false;
       att_ref_euler_ << 0.05, 0.0, 0.0;
       q_r_ = controller::EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
-    }
+    }*/
     else
     {
-      att_ref_euler_ << 0.00, 0.0, 0.0;
-      q_r_ = controller::EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
+      stabilize_curr_pos_ = true;
     }
   }
 
@@ -111,12 +116,13 @@ namespace controller {
     input_.F = msg->F;
 
     // Save desired angles to reference signal
-    //q_r_ = controller::EulerToQuat(0, 0, 0);
+    if (stabilize_curr_pos_)
+      q_r_ = controller::EulerToQuat(msg->z, msg->y, msg->x);
   }
 
   void AdaptiveController::generateCommandSignal()
   {
-    double w_0 = 100; // Bandwidth
+    double w_0 = 10.0; // Bandwidth
     double D = 1.0; // Damping
 
     // Difference between reference and command frame
@@ -150,6 +156,7 @@ namespace controller {
     q_e_ = q_c_.conjugate() * q_;
     // Calculate angular velocity error
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
+    //std::cout << w_bc_ << std::endl << std::endl;
   }
 
   void AdaptiveController::computeInput()
@@ -217,6 +224,20 @@ namespace controller {
     attitude_cmd_traj_quat.attitude.z = q_e_.z();
     attitude_cmd_traj_quat.attitude.w = q_e_.w();
     attitude_cmd_traj_quat_publisher.publish(attitude_cmd_traj_quat);
+
+    rosflight_msgs::Command w_c_msg;
+    w_c_msg.header.stamp = ros::Time::now();
+    w_c_msg.x = w_c_(0);
+    w_c_msg.y = w_c_(1);
+    w_c_msg.z = w_c_(2);
+    w_c_msg_publisher.publish(w_c_msg);
+
+    rosflight_msgs::Command w_bc_msg;
+    w_bc_msg.header.stamp = ros::Time::now();
+    w_bc_msg.x = w_bc_(0);
+    w_bc_msg.y = w_bc_(1);
+    w_bc_msg.z = w_bc_(2);
+    w_bc_msg_publisher.publish(w_bc_msg);
   }
 
   // *********
@@ -246,7 +267,6 @@ namespace controller {
   {
     Eigen::Vector3d v;
     v << v_hat(2,1), v_hat(0,2), v_hat(0,1);
-    k_q_ = 1.0;
     return v;
   }
 

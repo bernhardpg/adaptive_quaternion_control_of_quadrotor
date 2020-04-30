@@ -46,23 +46,24 @@
         pkg="adaptive_attitude_controller"
         type="attitude_controller"
         output="screen" launch-prefix="gnome-terminal -e "/>
-
+  <!--
   <node name="pos_plot"
         pkg="rqt_plot"
         type="rqt_plot"
         args="/position_error/x /position_error/y /position_error/z"/>
+  -->
 
   <node name="attitude_x"
         pkg="rqt_plot"
         type="rqt_plot"
-        args="/attitude_euler/x /attitude_ref_euler/x"/>
+        args="/attitude_euler/x /attitude_cmd_traj_euler/x /attitude_command/x"/>
 
   <node name="attitude_y"
         pkg="rqt_plot"
         type="rqt_plot"
-        args="/attitude_euler/y /attitude_ref_euler/y"/>
+        args="/attitude_euler/y /attitude_cmd_traj_euler/y /attitude_command/y"/>
 
-  <node name="attitude_error"
+  <node name="attitude_cmd_tra"
         pkg="rqt_plot"
         type="rqt_plot"
         args="/attitude_cmd_traj/"/>

@@ -32,6 +32,8 @@ namespace controller {
       ros::Publisher attitude_ref_publisher;
       ros::Publisher attitude_cmd_traj_publisher;
       ros::Publisher attitude_cmd_traj_quat_publisher;
+      ros::Publisher w_c_msg_publisher;
+      ros::Publisher w_bc_msg_publisher;
 
       // *******
       // Signals
@@ -72,6 +74,7 @@ namespace controller {
       double k_q_;
       double k_w_;
       double time_step_;
+      bool stabilize_curr_pos_;
 
       // *******
       // Functions
