@@ -11,6 +11,7 @@ namespace plt = matplotlibcpp;
 void plot_attitude(
 		Eigen::VectorX<Eigen::Quaterniond> qs,
 		Eigen::VectorX<Eigen::Vector3d> refs,
+		Eigen::VectorX<Eigen::Quaterniond> cmds,
 		std::vector<double> ts
 		);
 

@@ -88,6 +88,6 @@ void simulate()
 		refs(i) = ref;
 	}
 
-	plot_attitude(qs, refs, ts);
+	plot_attitude(qs, refs, cmds, ts);
 	//plot_cmd(cmds, refs, ts);
 }

@@ -52,9 +52,7 @@ namespace controller {
       // *******
       // Model parameters
       // *******
-      double max_thrust_;
-      double max_torque_;
-      Eigen::Matrix3d J_; // Inertia matrix
+      Eigen::Matrix3d J_nominal_; // Inertia matrix
 
       // *******
       // Controller
@@ -62,8 +60,13 @@ namespace controller {
       input_t input_;
       double k_q_;
       double k_w_;
+
+      // *******
+			// Trajectory generator
+      // *******
       double time_step_;
-      bool stabilize_curr_pos_;
+      double cmd_w_0_; // Bandwidth
+      double cmd_damping_;
 
       // *******
       // Functions
