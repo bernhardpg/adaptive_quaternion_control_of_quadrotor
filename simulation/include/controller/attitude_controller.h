@@ -61,6 +61,14 @@ namespace controller {
       double k_q_;
       double k_w_;
 
+			// *******
+			// Adaptive controller
+			// *******
+			Eigen::DiagonalMatrix<double,3,3> Lambda_hat_; // Control effectiveness
+			Eigen::DiagonalMatrix<double,3,3> Theta_hat_; // Adaptive parameters
+			Eigen::Vector3d tau_dist_hat_; // Angular acceleration disturbance
+			Eigen::Vector3d Phi; // Known vector of basis functions
+
       // *******
 			// Trajectory generator
       // *******

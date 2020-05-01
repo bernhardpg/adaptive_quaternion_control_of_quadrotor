@@ -8,17 +8,9 @@ namespace controller {
 
   void AdaptiveController::init()
   {
-    time_step_ = pow(10, -3); // Taken from simulation
-
-		// Trajectory generator params
-    cmd_w_0_ = 30.0; // Bandwidth
-    cmd_damping_ = 1.0; // Damping
-
-    // Controller params
-    k_q_ = 1.0;
-    k_w_ = 1.0;
-
-    // Initialize model parameters
+		// *******
+    // Model parameters
+		// *******
 		Eigen::Matrix3d est_errors;
 		est_errors << 0.02, 0,  0,
 									0, 0.015, 0,
@@ -29,24 +21,43 @@ namespace controller {
 									0, 0, 0.12; // From .urdf file
 		// Augment inertia matrix to not be perfectly identified
 		J_nominal_ += est_errors;
-		
 
+		// *******
+		// Trajectory generator params
+		// *******
+    time_step_ = pow(10, -3); // Taken from simulation
+
+    cmd_w_0_ = 30.0; // Bandwidth
+    cmd_damping_ = 1.0; // Damping
+
+		// *******
+    // Controller params
+		// *******
+    k_q_ = 1.0;
+    k_w_ = 1.0;
+
+		// *******
+		// Adaptive controller
+		// *******
+		// TODO start with better estimates?
+		Lambda_hat_.diagonal() << 0,0,0;
+		Theta_hat_.diagonal() << 0,0,0;
+		Phi << 0,0,0;
+		tau_dist_hat_ << 0,0,0;
+
+		// *******
     // Initialize variables
+		// *******
     q_ = Eigen::Quaterniond::Identity();
     w_ = Eigen::Vector3d::Zero();
     q_e_ = Eigen::Quaterniond::Identity();
     w_bc_ = Eigen::Vector3d::Zero();
 
-    // Set initial values for command trajectory:
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
     w_c_body_frame = Eigen::Vector3d::Zero();
     w_c_dot_body_frame = Eigen::Vector3d::Zero();
-
-    q_c_ = Eigen::Quaterniond(1,0,0,0);
-    w_c_ = Eigen::Vector3d::Zero();
-    w_c_dot_ = Eigen::Vector3d::Zero();
 
     q_r_ = EulerToQuat(0,0,0);
   }
