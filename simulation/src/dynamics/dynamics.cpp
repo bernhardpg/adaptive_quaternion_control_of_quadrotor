@@ -49,6 +49,8 @@ void simulate()
 	Eigen::VectorX<Eigen::Quaterniond> cmds(N);
 	Eigen::VectorX<Eigen::Vector3d> refs(N);
 
+	Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model(N);
+
 	controller::AdaptiveController controller;
 
 	// ************
@@ -84,10 +86,13 @@ void simulate()
 
 		qs(i) = q;
 		ws(i) = w;
-		cmds(i) = controller.getCmdSignal();
+		ws_adaptive_model(i) = controller.getAdaptiveModelAngVel();
+		cmds(i) = controller.getAttCmdSignal();
 		refs(i) = ref;
 	}
 
+	std::cout << "Plotting" << std::endl;
+	plot_adaptive_model(ws, ws_adaptive_model, ts);
 	plot_attitude(qs, refs, cmds, ts);
 	//plot_cmd(cmds, refs, ts);
 }

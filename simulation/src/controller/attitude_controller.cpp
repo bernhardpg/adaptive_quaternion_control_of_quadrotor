@@ -42,8 +42,13 @@ namespace controller {
 		// TODO start with better estimates?
 		Lambda_hat_.diagonal() << 0,0,0;
 		Theta_hat_.diagonal() << 0,0,0;
-		Phi << 0,0,0;
 		tau_dist_hat_ << 0,0,0;
+
+		P_ = Eigen::Matrix3d::Identity();
+		Phi_ << 0,0,0;
+
+		w_adaptive_model_ << 0,0,0;
+		e_adaptive_model_ << 0,0,0;
 
 		// *******
     // Initialize variables
@@ -56,8 +61,8 @@ namespace controller {
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
-    w_c_body_frame = Eigen::Vector3d::Zero();
-    w_c_dot_body_frame = Eigen::Vector3d::Zero();
+    w_c_body_frame_ = Eigen::Vector3d::Zero();
+    w_c_dot_body_frame_ = Eigen::Vector3d::Zero();
 
     q_r_ = EulerToQuat(0,0,0);
   }
@@ -71,23 +76,9 @@ namespace controller {
     // Controll loop
     generateCommandSignal();
     calculateErrors();
+		calculateAdaptiveParameters();
     computeInput();
   }
-
-	void AdaptiveController::setRefSignal(Eigen::Quaterniond q_ref)
-	{
-		q_r_ = q_ref;
-	}
-
-	Eigen::Vector3d AdaptiveController::getInputTorques()
-	{
-		return input_.tau;
-	}
-
-	Eigen::Quaterniond AdaptiveController::getCmdSignal()
-	{
-		return q_c_;
-	}
 
   void AdaptiveController::generateCommandSignal()
   {
@@ -112,8 +103,8 @@ namespace controller {
     w_c_ = w_c_ + time_step_ * w_c_dot_;
 
     // Calculate body frame values
-    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
-    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+    w_c_body_frame_ = q_e_.conjugate()._transformVector(w_c_);
+    w_c_dot_body_frame_ = q_e_.conjugate()._transformVector(w_c_dot_);
   }
 
   void AdaptiveController::calculateErrors()
@@ -122,21 +113,88 @@ namespace controller {
     q_e_ = q_c_.conjugate() * q_;
     // Calculate angular velocity error
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
-    //std::cout << w_bc_ << std::endl << std::endl;
   }
+
+
+	void AdaptiveController::calculateAdaptiveParameters()
+	{
+		// *****
+		// Adaptive reference model
+		// *****
+		// Define signals
+		Eigen::Matrix3d A_m;
+		Eigen::Vector3d r; // TODO define generally?
+
+		A_m = - k_w_ * Eigen::Matrix3d::Identity() - cross_map(w_c_body_frame_);
+		r = w_c_dot_body_frame_
+			- k_q_ * quat_log_v(quat_plus_map(q_e_))
+			+ k_w_ * w_c_body_frame_;
+
+		// Calculate derivative
+		Eigen::Vector3d w_adaptive_model_dot;
+		w_adaptive_model_dot = A_m * w_adaptive_model_ + r;
+		
+		// Forward euler
+		w_adaptive_model_ = w_adaptive_model_ + time_step_ * w_adaptive_model_dot;
+
+		// *****
+		// Calculate adaptive model error
+		// *****
+		e_adaptive_model_ = w_adaptive_model_ - w_;
+	}
 
   void AdaptiveController::computeInput()
   {
     // Calculates inputs for the NED frame!
     // Baseline controller
+		// TODO fix these names
     Eigen::Vector3d cancellation_terms = cross_map(w_) * J_nominal_ * w_
-      + J_nominal_ * (w_c_dot_body_frame
-          + cross_map(w_) * w_c_body_frame);
+      + J_nominal_ * (w_c_dot_body_frame_
+          + cross_map(w_) * w_c_body_frame_);
 
     Eigen::Vector3d feedforward_terms = J_nominal_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
 
     input_.tau = cancellation_terms + feedforward_terms;
   }
+
+	// *******
+	// Setters
+	// *******
+
+	void AdaptiveController::setRefSignal(Eigen::Quaterniond q_ref)
+	{
+		q_r_ = q_ref;
+	}
+
+	// *******
+	// Getters
+	// *******
+
+	Eigen::Vector3d AdaptiveController::getAdaptiveModelAngVel()
+	{
+		return w_adaptive_model_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getAdaptiveModelError()
+	{
+		return e_adaptive_model_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getInputTorques()
+	{
+		return input_.tau;
+	}
+
+	Eigen::Quaterniond AdaptiveController::getAttCmdSignal()
+	{
+		return q_c_;
+	}
+
+
+
+	// *****
+	// Tools 
+	// *****
 
   double AdaptiveController::saturate(double v, double min, double max)
   {
@@ -146,4 +204,7 @@ namespace controller {
 
     return v;
   }
+
+
+
 } // namespace controller

@@ -1,5 +1,42 @@
 #include "plot/plotter.h"
 
+void plot_adaptive_model(
+		Eigen::VectorX<Eigen::Vector3d> ws,
+		Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> w_x, w_y, w_z;
+	std::vector<double> w_x_adaptive_model, w_y_adaptive_model, w_z_adaptive_model;
+
+	for (int i = 0; i < ws.size(); ++i)
+	{
+		w_x.push_back(ws(i)(0));
+		w_y.push_back(ws(i)(1));
+		w_z.push_back(ws(i)(2));
+
+		w_x_adaptive_model.push_back(ws_adaptive_model(i)(0));
+		w_y_adaptive_model.push_back(ws_adaptive_model(i)(1));
+		w_z_adaptive_model.push_back(ws_adaptive_model(i)(2));
+	}
+
+	plt::plot(ts, w_x);
+	plt::plot(ts, w_x_adaptive_model, "r--");
+	plt::title("w_x");
+	plt::show();
+
+	plt::plot(ts, w_y);
+	plt::plot(ts, w_y_adaptive_model, "r--");
+	plt::title("w_y");
+	plt::show();
+
+	plt::plot(ts, w_z);
+	plt::plot(ts, w_z_adaptive_model, "r--");
+	plt::title("w_z");
+	plt::show();
+}
+
+
 void plot_attitude(
 		Eigen::VectorX<Eigen::Quaterniond> qs,
 		Eigen::VectorX<Eigen::Vector3d> refs,
@@ -31,19 +68,19 @@ void plot_attitude(
 
 	plt::plot(ts, roll);
 	plt::plot(ts, ref_roll);
-	plt::plot(ts, cmd_roll);
+	plt::plot(ts, cmd_roll, "b--");
 	plt::title("Roll");
 	plt::show();
 
 	plt::plot(ts, pitch);
 	plt::plot(ts, ref_pitch);
-	plt::plot(ts, cmd_pitch);
+	plt::plot(ts, cmd_pitch, "b--");
 	plt::title("Pitch");
 	plt::show();
 
 	plt::plot(ts, yaw);
 	plt::plot(ts, ref_yaw);
-	plt::plot(ts, cmd_yaw);
+	plt::plot(ts, cmd_yaw, "b--");
 	plt::title("Yaw");
 	plt::show();
 

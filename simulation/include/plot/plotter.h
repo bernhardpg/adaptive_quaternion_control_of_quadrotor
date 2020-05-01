@@ -8,6 +8,12 @@
 
 namespace plt = matplotlibcpp;
 
+void plot_adaptive_model(
+		Eigen::VectorX<Eigen::Vector3d> ws,
+		Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model,
+		std::vector<double> ts
+		);
+
 void plot_attitude(
 		Eigen::VectorX<Eigen::Quaterniond> qs,
 		Eigen::VectorX<Eigen::Vector3d> refs,

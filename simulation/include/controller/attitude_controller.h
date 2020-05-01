@@ -20,7 +20,9 @@ namespace controller {
 
 			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
 			Eigen::Vector3d getInputTorques();
-			Eigen::Quaterniond getCmdSignal();
+			Eigen::Quaterniond getAttCmdSignal();
+			Eigen::Vector3d getAdaptiveModelAngVel();
+			Eigen::Vector3d getAdaptiveModelError();
 			void setRefSignal(Eigen::Quaterniond q_ref);
 
     private:
@@ -46,8 +48,8 @@ namespace controller {
       Eigen::Quaterniond q_c_;
       Eigen::Vector3d w_c_; // Given in command frame
       Eigen::Vector3d w_c_dot_;
-      Eigen::Vector3d w_c_body_frame;
-      Eigen::Vector3d w_c_dot_body_frame;
+      Eigen::Vector3d w_c_body_frame_;
+      Eigen::Vector3d w_c_dot_body_frame_;
 
       // *******
       // Model parameters
@@ -67,7 +69,12 @@ namespace controller {
 			Eigen::DiagonalMatrix<double,3,3> Lambda_hat_; // Control effectiveness
 			Eigen::DiagonalMatrix<double,3,3> Theta_hat_; // Adaptive parameters
 			Eigen::Vector3d tau_dist_hat_; // Angular acceleration disturbance
-			Eigen::Vector3d Phi; // Known vector of basis functions
+
+			Eigen::Vector3d Phi_; // Known vector of basis functions
+			Eigen::Matrix3d P_;
+
+			Eigen::Vector3d w_adaptive_model_;
+			Eigen::Vector3d e_adaptive_model_;
 
       // *******
 			// Trajectory generator
@@ -81,6 +88,7 @@ namespace controller {
       // *******
       void init();
       void generateCommandSignal();
+			void calculateAdaptiveParameters();
       void calculateErrors();
       void computeInput();
 
