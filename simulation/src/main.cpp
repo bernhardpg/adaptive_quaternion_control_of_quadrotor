@@ -1,4 +1,4 @@
-#include "dynamics/dynamics.h"
+#include "simulate/simulate.h"
 #include <iostream>
 
 int main(int argc, char* argv[])

@@ -1,103 +1,4 @@
-#include "dynamics/dynamics.h"
-
-Eigen::Vector3d get_ref_signal(double t)
-{
-	Eigen::Vector3d ref;
-
-	/*
-	if (t < 2)
-		ref << 0, 0, 0;
-	else if (t < 17.5)
-		ref << 0.3, 0.2, 0;
-	else if(t < 19)
-		ref << 0, 0, 0;
-	else if(t < 21)
-		ref << 0.3, 0, 0;*/
-
-	/*
-	else if (t < 5)
-		ref << 0, 0, 0;
-	else if (t < 7)
-		ref << 0.2, -0.3, 0;
-	else if (t < 10)
-		ref << 0, 0, 0;
-
-	else if (t < 2.5 + 10)
-		ref << 0.3, 0.2, 0;
-	else if (t < 5 + 10)
-		ref << 0, 0, 0;
-	else if (t < 7 + 10)
-		ref << 0.2, -0.3, 0;
-	else if (t < 10 + 10)
-		ref << 0, 0, 0;
-		*/
-
-	if (t < 3)
-		ref << 0, 0, 0;
-	else if (t < 4)
-		ref << 0.3, 0.3, 0;
-	else if (t < 5)
-		ref << 0, 0, 0;
-	else if (t < 6)
-		ref << -0.3, -0.3, 0;
-	else if (t < 7)
-		ref << 0,0,0;
-	else if (t < 8)
-		ref << 0.1,0.1,0;
-	else if (t < 9.5)
-		ref << 0.35,0.32,0;
-	else if (t < 10.0)
-		ref << -0.3, 0,0;
-	else if (t < 12)
-		ref << -0.3,0,0;
-	else if (t < 13)
-		ref << 0.3,0.2,0;
-	else if (t < 13.5)
-		ref << 0,0,0;
-	else if (t < 15.0)
-		ref << 0.15,0.15,0;
-	else if (t < 16.5)
-		ref << -0.3,-0.2,0;
-	else if (t < 18.5)
-		ref << 0.2,0,0;
-	else if (t < 19)
-		ref << 0,0,0;
-
-	else if (t < 3 + 20)
-		ref << 0, 0, 0;
-	else if (t < 4 + 20)
-		ref << 0.3, 0.3, 0;
-	else if (t < 5 + 20)
-		ref << 0, 0, 0;
-	else if (t < 6 + 20)
-		ref << -0.3, -0.3, 0;
-	else if (t < 7 + 20)
-		ref << 0,0,0;
-	else if (t < 8 + 20)
-		ref << 0.1,0.1,0;
-	else if (t < 9.5 + 20)
-		ref << 0.35,0.32,0;
-	else if (t < 10.0 + 20)
-		ref << -0.3, 0,0;
-	else if (t < 12 + 20)
-		ref << -0.3,0,0;
-	else if (t < 13 + 20)
-		ref << 0.3,0.2,0;
-	else if (t < 13.5 + 20)
-		ref << 0,0,0;
-	else if (t < 15.0 + 20)
-		ref << 0.15,0.15,0;
-	else if (t < 16.5 + 20)
-		ref << -0.3,-0.2,0;
-	else if (t < 18.5 + 20)
-		ref << 0.2,0,0;
-	else if (t < 19 + 20)
-		ref << 0,0,0;
-
-	return ref;
-}
-
-
+#include "simulate/simulate.h"
 
 void simulate()
 {
@@ -152,7 +53,7 @@ void simulate()
 		// **********
 
 		// Send current reference signal to controller
-		Eigen::Vector3d ref = get_ref_signal(t);
+		Eigen::Vector3d ref = getRefSignalSquare(t);
 		controller.setRefSignal(EulerToQuat(ref));
 
 		// Enable adaptive controller after 10 seconds

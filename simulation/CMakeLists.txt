@@ -24,13 +24,9 @@ include_directories(include)
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
-target_link_libraries(${PROJECT_NAME} dynamics)
+target_link_libraries(${PROJECT_NAME} simulate)
 target_link_libraries(${PROJECT_NAME} plotter)
-
-add_library(dynamics src/dynamics/dynamics.cpp)
-target_link_libraries(dynamics Eigen3::Eigen)
-target_link_libraries(dynamics attitude_controller)
-target_link_libraries(dynamics plotter)
+target_link_libraries(${PROJECT_NAME} signal_generator)
 
 add_library(attitude_controller src/controller/attitude_controller.cpp)
 target_link_libraries(attitude_controller Eigen3::Eigen)
@@ -38,6 +34,13 @@ target_link_libraries(attitude_controller quat_tools)
 
 add_library(quat_tools src/tools/quat.cpp)
 target_link_libraries(quat_tools Eigen3::Eigen)
+
+add_library(simulate src/simulate/simulate.cpp)
+target_link_libraries(simulate Eigen3::Eigen)
+target_link_libraries(simulate attitude_controller)
+target_link_libraries(simulate plotter)
+
+add_library(signal_generator src/simulate/signal_generators.cpp)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter quat_tools)
