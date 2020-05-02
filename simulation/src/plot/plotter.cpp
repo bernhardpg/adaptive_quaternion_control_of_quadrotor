@@ -1,6 +1,121 @@
 #include "plot/plotter.h"
 
-void plot_adaptive_model(
+void plot_adaptive_params(
+		Eigen::VectorX<Eigen::Matrix3d> Theta_hat,
+		Eigen::VectorX<Eigen::Matrix3d> Lambda_hat,
+		Eigen::VectorX<Eigen::Vector3d> tau_dist_hat,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> Theta_hat_11, Theta_hat_12, Theta_hat_13,
+											Theta_hat_21, Theta_hat_22, Theta_hat_23,
+											Theta_hat_31, Theta_hat_32, Theta_hat_33;
+
+	std::vector<double> Lambda_hat_11, Lambda_hat_12, Lambda_hat_13,
+											Lambda_hat_21, Lambda_hat_22, Lambda_hat_23,
+											Lambda_hat_31, Lambda_hat_32, Lambda_hat_33;
+
+	std::vector<double> tau_dist_x, tau_dist_y, tau_dist_z;
+
+	for (int i = 0; i < ts.size(); ++i)
+	{
+		Theta_hat_11.push_back(Theta_hat(i)(0,0));
+		Theta_hat_12.push_back(Theta_hat(i)(0,1));
+		Theta_hat_13.push_back(Theta_hat(i)(0,2));
+
+		Theta_hat_21.push_back(Theta_hat(i)(1,0));
+		Theta_hat_22.push_back(Theta_hat(i)(1,1));
+		Theta_hat_23.push_back(Theta_hat(i)(1,2));
+
+		Theta_hat_31.push_back(Theta_hat(i)(2,0));
+		Theta_hat_32.push_back(Theta_hat(i)(2,1));
+		Theta_hat_33.push_back(Theta_hat(i)(2,2));
+
+		Lambda_hat_11.push_back(Lambda_hat(i)(0,0));
+		Lambda_hat_12.push_back(Lambda_hat(i)(0,1));
+		Lambda_hat_13.push_back(Lambda_hat(i)(0,2));
+
+		Lambda_hat_21.push_back(Lambda_hat(i)(1,0));
+		Lambda_hat_22.push_back(Lambda_hat(i)(1,1));
+		Lambda_hat_23.push_back(Lambda_hat(i)(1,2));
+
+		Lambda_hat_31.push_back(Lambda_hat(i)(2,0));
+		Lambda_hat_32.push_back(Lambda_hat(i)(2,1));
+		Lambda_hat_33.push_back(Lambda_hat(i)(2,2));
+
+		tau_dist_x.push_back(tau_dist_hat(i)(0));
+		tau_dist_y.push_back(tau_dist_hat(i)(1));
+		tau_dist_z.push_back(tau_dist_hat(i)(2));
+	}
+
+	plt::plot(ts, Theta_hat_11);
+	plt::plot(ts, Theta_hat_12);
+	plt::plot(ts, Theta_hat_13);
+	plt::plot(ts, Theta_hat_21);
+	plt::plot(ts, Theta_hat_22);
+	plt::plot(ts, Theta_hat_23);
+	plt::plot(ts, Theta_hat_31);
+	plt::plot(ts, Theta_hat_32);
+	plt::plot(ts, Theta_hat_33);
+	plt::title("Theta_hat");
+	plt::show();
+
+	plt::plot(ts, Lambda_hat_11);
+	plt::plot(ts, Lambda_hat_12);
+	plt::plot(ts, Lambda_hat_13);
+	plt::plot(ts, Lambda_hat_21);
+	plt::plot(ts, Lambda_hat_22);
+	plt::plot(ts, Lambda_hat_23);
+	plt::plot(ts, Lambda_hat_31);
+	plt::plot(ts, Lambda_hat_32);
+	plt::plot(ts, Lambda_hat_33);
+	plt::title("Lambda_hat");
+	plt::show();
+
+	plt::plot(ts, tau_dist_x);
+	plt::plot(ts, tau_dist_y);
+	plt::plot(ts, tau_dist_z);
+	plt::title("Tau_dist");
+	plt::show();
+}
+
+
+void plot_input_torques(
+		Eigen::VectorX<Eigen::Vector3d> baseline_input_torques,
+		Eigen::VectorX<Eigen::Vector3d> adaptive_input_torques,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> baseline_tau_x, baseline_tau_y, baseline_tau_z;
+	std::vector<double> adaptive_tau_x, adaptive_tau_y, adaptive_tau_z;
+	for (int i = 0; i < baseline_input_torques.size(); ++i)
+	{
+		baseline_tau_x.push_back(baseline_input_torques(i)(0));
+		baseline_tau_y.push_back(baseline_input_torques(i)(1));
+		baseline_tau_z.push_back(baseline_input_torques(i)(2));
+
+		adaptive_tau_x.push_back(adaptive_input_torques(i)(0));
+		adaptive_tau_y.push_back(adaptive_input_torques(i)(1));
+		adaptive_tau_z.push_back(adaptive_input_torques(i)(2));
+	}
+
+//	plt::plot(ts, baseline_tau_x, "b--");
+	plt::plot(ts, adaptive_tau_x);
+	plt::title("tau_x");
+	plt::show();
+
+//	plt::plot(ts, baseline_tau_y, "b--");
+	plt::plot(ts, adaptive_tau_y);
+	plt::title("tau_y");
+	plt::show();
+
+//	plt::plot(ts, baseline_tau_y, "b--");
+	plt::plot(ts, adaptive_tau_y);
+	plt::title("tau_y");
+	plt::show();
+}
+
+void plot_adaptive_ref_model(
 		Eigen::VectorX<Eigen::Vector3d> ws,
 		Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model,
 		std::vector<double> ts
@@ -67,7 +182,7 @@ void plot_attitude(
 	}
 
 	plt::plot(ts, roll);
-	plt::plot(ts, ref_roll);
+	//plt::plot(ts, ref_roll);
 	plt::plot(ts, cmd_roll, "b--");
 	plt::title("Roll");
 	plt::show();
@@ -82,6 +197,7 @@ void plot_attitude(
 	plt::plot(ts, ref_yaw);
 	plt::plot(ts, cmd_yaw, "b--");
 	plt::title("Yaw");
+	plt::ylim(-0.4, 0.4);
 	plt::show();
 
 }

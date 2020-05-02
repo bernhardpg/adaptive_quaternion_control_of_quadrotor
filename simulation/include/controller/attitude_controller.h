@@ -7,22 +7,24 @@
 #include "tools/quat.h"
 
 namespace controller {
-  typedef struct
-  {
-    Eigen::Vector3d tau;
-    double F;
-  } input_t;
-
   class AdaptiveController
   {
     public:
       AdaptiveController();
 
 			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
-			Eigen::Vector3d getInputTorques();
+
 			Eigen::Quaterniond getAttCmdSignal();
 			Eigen::Vector3d getAdaptiveModelAngVel();
 			Eigen::Vector3d getAdaptiveModelError();
+			Eigen::Vector3d getBaselineInput();
+			Eigen::Vector3d getAdaptiveInput();
+			Eigen::Vector3d getInputTorques();
+			Eigen::Matrix3d getThetaHat();
+			Eigen::Matrix3d getLambdaHat();
+			Eigen::Vector3d getTauDistHat();
+
+			void setAdaptive(bool enable_adaptive_controller);
 			void setRefSignal(Eigen::Quaterniond q_ref);
 
     private:
@@ -59,18 +61,28 @@ namespace controller {
       // *******
       // Controller
       // *******
-      input_t input_;
+			Eigen::Vector3d tau_baseline_; // Control input from baseline controller
+			Eigen::Vector3d tau_adaptive_; // Control input from adaptive controller
       double k_q_;
       double k_w_;
+			Eigen::Vector3d total_input_torques_; // Control input from adaptive controller
 
 			// *******
 			// Adaptive controller
 			// *******
-			Eigen::DiagonalMatrix<double,3,3> Lambda_hat_; // Control effectiveness
-			Eigen::DiagonalMatrix<double,3,3> Theta_hat_; // Adaptive parameters
+			double k_e_; // Gain on error feedback in closed loop ref model
+			bool enable_adaptive_controller_;
+
+			Eigen::Matrix3d adaptive_gain_Theta_;
+			Eigen::Matrix3d adaptive_gain_Lambda_;
+			double adaptive_gain_tau_;
+
+			Eigen::Matrix3d Lambda_hat_; // Control effectiveness
+			Eigen::Matrix3d Theta_hat_; // Adaptive parameters
 			Eigen::Vector3d tau_dist_hat_; // Angular acceleration disturbance
 
-			Eigen::Vector3d Phi_; // Known vector of basis functions
+			Eigen::Vector3d Phi_; // Regressor: known vector of basis functions
+			Eigen::Matrix3d Theta_nominal_;
 			Eigen::Matrix3d P_;
 
 			Eigen::Vector3d w_adaptive_model_;
@@ -88,9 +100,12 @@ namespace controller {
       // *******
       void init();
       void generateCommandSignal();
-			void calculateAdaptiveParameters();
       void calculateErrors();
-      void computeInput();
+			void calculateAdaptiveParameters();
+			void calculateAdaptiveReferenceErrors();
+			void calculateAdaptiveInput();
+      void calculateBaselineInput();
+			void calculateTotalInputTorques();
 
       double saturate(double v, double min, double max); // TODO move somewhere else
   };

@@ -8,7 +8,20 @@
 
 namespace plt = matplotlibcpp;
 
-void plot_adaptive_model(
+void plot_adaptive_params(
+		Eigen::VectorX<Eigen::Matrix3d> Theta_hat,
+		Eigen::VectorX<Eigen::Matrix3d> Lambda_hat,
+		Eigen::VectorX<Eigen::Vector3d> tau_dist_hat,
+		std::vector<double> ts
+		);
+
+void plot_input_torques(
+		Eigen::VectorX<Eigen::Vector3d> baseline_input_torques,
+		Eigen::VectorX<Eigen::Vector3d> adaptive_input_torques,
+		std::vector<double> ts
+		);
+
+void plot_adaptive_ref_model(
 		Eigen::VectorX<Eigen::Vector3d> ws,
 		Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model,
 		std::vector<double> ts

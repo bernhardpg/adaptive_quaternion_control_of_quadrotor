@@ -12,9 +12,9 @@ namespace controller {
     // Model parameters
 		// *******
 		Eigen::Matrix3d est_errors;
-		est_errors << 0.02, 0,  0,
-									0, 0.015, 0,
-									0, 0,  0.03;
+		est_errors << 0.008, 0,  0,
+									0, 0.005, 0,
+									0, 0,  0.01;
 
     J_nominal_ << 0.07, 0, 0,
 									0, 0.08, 0,
@@ -39,16 +39,31 @@ namespace controller {
 		// *******
 		// Adaptive controller
 		// *******
-		// TODO start with better estimates?
-		Lambda_hat_.diagonal() << 0,0,0;
-		Theta_hat_.diagonal() << 0,0,0;
-		tau_dist_hat_ << 0,0,0;
+		enable_adaptive_controller_ = false;
+		k_e_ = 25;
 
+		// Adaptive gains
+		adaptive_gain_Theta_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
+		adaptive_gain_Lambda_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
+		adaptive_gain_tau_ = 600;
+
+		// Nominal values
+		Theta_nominal_ = Eigen::Matrix3d::Zero();
+		Theta_nominal_(0,0) = (J_nominal_(2,2) - J_nominal_(1,1)) / J_nominal_(0,0);
+		Theta_nominal_(1,1) = (J_nominal_(0,0) - J_nominal_(2,2)) / J_nominal_(1,1);
+		Theta_nominal_(2,2) = (J_nominal_(1,1) - J_nominal_(0,0)) / J_nominal_(2,2);
+
+		// Initialize adaptive parameters
+		Lambda_hat_ = Eigen::Matrix3d(J_nominal_.inverse());
+		Theta_hat_ = Eigen::Matrix3d(Theta_nominal_);
+		tau_dist_hat_ << 0, 0, 0;
+
+		// Initialize signals
 		P_ = Eigen::Matrix3d::Identity();
-		Phi_ << 0,0,0;
+		Phi_ << 0, 0, 0;
 
-		w_adaptive_model_ << 0,0,0;
-		e_adaptive_model_ << 0,0,0;
+		w_adaptive_model_ << 0, 0, 0;
+		e_adaptive_model_ << 0, 0, 0;
 
 		// *******
     // Initialize variables
@@ -76,8 +91,11 @@ namespace controller {
     // Controll loop
     generateCommandSignal();
     calculateErrors();
+    calculateBaselineInput();
+		calculateAdaptiveReferenceErrors();
 		calculateAdaptiveParameters();
-    computeInput();
+		calculateAdaptiveInput();
+		calculateTotalInputTorques();
   }
 
   void AdaptiveController::generateCommandSignal()
@@ -115,12 +133,8 @@ namespace controller {
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
   }
 
-
-	void AdaptiveController::calculateAdaptiveParameters()
+	void AdaptiveController::calculateAdaptiveReferenceErrors()
 	{
-		// *****
-		// Adaptive reference model
-		// *****
 		// Define signals
 		Eigen::Matrix3d A_m;
 		Eigen::Vector3d r; // TODO define generally?
@@ -132,18 +146,47 @@ namespace controller {
 
 		// Calculate derivative
 		Eigen::Vector3d w_adaptive_model_dot;
-		w_adaptive_model_dot = A_m * w_adaptive_model_ + r;
-		
+		w_adaptive_model_dot = A_m * w_adaptive_model_ + r - k_e_ * e_adaptive_model_;
+	
 		// Forward euler
 		w_adaptive_model_ = w_adaptive_model_ + time_step_ * w_adaptive_model_dot;
 
-		// *****
 		// Calculate adaptive model error
-		// *****
 		e_adaptive_model_ = w_adaptive_model_ - w_;
 	}
 
-  void AdaptiveController::computeInput()
+
+	void AdaptiveController::calculateAdaptiveParameters()
+	{
+		// Regressor signal
+		Phi_ << - w_(2) * w_(1),
+						- w_(0) * w_(2),
+						- w_(0) * w_(1);
+
+		// Calculate derivatives
+		Eigen::Vector3d tau_dist_hat_dot;
+		Eigen::Matrix3d Theta_hat_dot;
+		Eigen::Matrix3d Lambda_hat_dot;
+
+		tau_dist_hat_dot = - adaptive_gain_tau_ * P_ * e_adaptive_model_;
+		Lambda_hat_dot = - adaptive_gain_Lambda_ * P_ * e_adaptive_model_ *	total_input_torques_.transpose();
+		Theta_hat_dot = - adaptive_gain_Theta_ * P_ * e_adaptive_model_ * Phi_.transpose();
+
+		// Forward euler
+		tau_dist_hat_ = tau_dist_hat_ + time_step_ * tau_dist_hat_dot;
+		Lambda_hat_ = Lambda_hat_ + time_step_ * Lambda_hat_dot;
+		Theta_hat_ = Theta_hat_ + time_step_ * Theta_hat_dot;
+	}
+
+	void AdaptiveController::calculateAdaptiveInput()
+	{
+		tau_adaptive_ = Lambda_hat_.inverse()
+			* (- (Theta_hat_ - Theta_nominal_) * Phi_ - tau_dist_hat_)
+			- (Eigen::Matrix3d::Identity() - Lambda_hat_.inverse() * J_nominal_.inverse())
+			* tau_baseline_;
+	}
+
+  void AdaptiveController::calculateBaselineInput()
   {
     // Calculates inputs for the NED frame!
     // Baseline controller
@@ -154,8 +197,15 @@ namespace controller {
 
     Eigen::Vector3d feedforward_terms = J_nominal_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
 
-    input_.tau = cancellation_terms + feedforward_terms;
+    tau_baseline_ = cancellation_terms + feedforward_terms;
   }
+
+	void AdaptiveController::calculateTotalInputTorques()
+	{
+		total_input_torques_ = tau_baseline_;
+		if (enable_adaptive_controller_)
+			total_input_torques_ += tau_adaptive_;
+	}
 
 	// *******
 	// Setters
@@ -164,6 +214,11 @@ namespace controller {
 	void AdaptiveController::setRefSignal(Eigen::Quaterniond q_ref)
 	{
 		q_r_ = q_ref;
+	}
+
+	void AdaptiveController::setAdaptive(bool enable_adaptive_controller)
+	{
+		enable_adaptive_controller_ = enable_adaptive_controller;
 	}
 
 	// *******
@@ -180,15 +235,41 @@ namespace controller {
 		return e_adaptive_model_;
 	}
 
-	Eigen::Vector3d AdaptiveController::getInputTorques()
-	{
-		return input_.tau;
-	}
-
 	Eigen::Quaterniond AdaptiveController::getAttCmdSignal()
 	{
 		return q_c_;
 	}
+
+	Eigen::Matrix3d AdaptiveController::getThetaHat()
+	{
+		return Theta_hat_;
+	}
+
+	Eigen::Matrix3d AdaptiveController::getLambdaHat()
+	{
+		return Lambda_hat_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getTauDistHat()
+	{
+		return tau_dist_hat_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getBaselineInput()
+	{
+		return	tau_baseline_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getAdaptiveInput()
+	{
+		return	tau_adaptive_;
+	}
+
+	Eigen::Vector3d AdaptiveController::getInputTorques()
+	{
+		return	total_input_torques_;
+	}
+
 
 
 
