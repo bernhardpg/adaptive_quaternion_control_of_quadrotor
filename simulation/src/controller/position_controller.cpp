@@ -18,10 +18,8 @@ namespace controller {
 		vel_ << 0, 0, 0;
 		e_pos_ << 0, 0, 0;
 		e_vel_ << 0, 0, 0;
-
-		// Setpoint
-		pos_d_ << 0, 0, -3.0;
-		vel_d_ << 0, 0, 0;
+		pos_ref_ << 0, 0, 0;
+		vel_ref_ << 0, 0, 0;
 
 		// Controller
 		K_.resize(3,6);
@@ -48,8 +46,8 @@ namespace controller {
 
   void PositionController::calculateErrors()
   {
-    e_pos_ = pos_ - pos_d_;
-    e_vel_ = vel_ - vel_d_;
+    e_pos_ = pos_ - pos_ref_;
+    e_vel_ = vel_ - vel_ref_;
   }
 
   void PositionController::computeInput()
@@ -60,13 +58,44 @@ namespace controller {
     Eigen::Vector3d u_pos = - K_ * (tot_e);
     Eigen::Vector3d u_pd = u_pos - Eigen::Vector3d(0,0,g_);
 
-    Eigen::Quaterniond q_d;
-    q_d.w() = (thrust_direction_.dot(u_pd) + u_pd.norm());
-    q_d.vec() = thrust_direction_.cross(u_pd);
-    q_d.normalize();
+    q_desired_.w() = (thrust_direction_.dot(u_pd) + u_pd.norm());
+    q_desired_.vec() = thrust_direction_.cross(u_pd);
+    q_desired_.normalize();
 
-    double F_th = u_pd.norm() * m_; // Note: F always applied in body z-axis
-    Eigen::Vector3d attitude_d = QuatToEuler(q_d);
+    F_thrust_= u_pd.norm() * m_; // Note: F always applied in body z-axis
   }
+
+	// *******
+	// Getters
+	// *******
+
+	Eigen::Quaterniond PositionController::getInputAttitude()
+	{
+		return q_desired_;	
+	}
+
+	double PositionController::getInputThrust()
+	{
+		return F_thrust_;	
+	}
+
+	// *******
+	// Setters
+	// *******
+
+	void PositionController::setRefSignal(Eigen::Vector3d pos_ref)
+	{
+		pos_ref_ = pos_ref;
+	}
+
+	void PositionController::setRefSignal(
+		Eigen::Vector3d pos_ref, Eigen::Vector3d vel_ref
+		)
+	{
+		pos_ref_ = pos_ref;
+		vel_ref_ = vel_ref;
+	}
+
+
 } // namespace controller
 

@@ -15,6 +15,12 @@ namespace controller{
 					Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Quaterniond q
 					);
 
+			Eigen::Quaterniond getInputAttitude();
+			double getInputThrust();
+
+			void setRefSignal(Eigen::Vector3d pos_ref);
+			void setRefSignal(Eigen::Vector3d pos_ref, Eigen::Vector3d vel_ref);
+
     private:
 			// *******
       // Signals
@@ -31,13 +37,15 @@ namespace controller{
       Eigen::Vector3d e_vel_;
 
       // Command
-      Eigen::Vector3d pos_d_;
-      Eigen::Vector3d vel_d_;
+      Eigen::Vector3d pos_ref_;
+      Eigen::Vector3d vel_ref_;
 
 			// *********
 			// Controller
 			// *********
 			Eigen::MatrixXd K_;
+			double F_thrust_;
+			Eigen::Quaterniond q_desired_;
 
 			// *******
       // Model parameters

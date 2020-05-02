@@ -1,5 +1,24 @@
 #include "plot/plotter.h"
 
+void plot_position3d(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> pos_xs, pos_ys, pos_zs;
+
+	for (int i = 0; i < ts.size(); ++i)
+	{
+		pos_xs.push_back(poss(i)(0));
+		pos_ys.push_back(poss(i)(1));
+		pos_zs.push_back(poss(i)(2));
+	}
+
+	plt::plot3(pos_xs, pos_ys, pos_zs);
+	plt::title("3D-position");
+	plt::show();
+}
+
 void plot_position(
 		Eigen::VectorX<Eigen::Vector3d> poss,
 		std::vector<double> ts

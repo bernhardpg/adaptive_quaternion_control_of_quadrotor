@@ -8,6 +8,11 @@
 
 namespace plt = matplotlibcpp;
 
+void plot_position3d(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		std::vector<double> ts
+		);
+
 void plot_position(
 		Eigen::VectorX<Eigen::Vector3d> poss,
 		std::vector<double> ts

@@ -1,7 +1,17 @@
 #include "simulate/simulate.h"
 
+Eigen::Vector3d nedToEnu(Eigen::Vector3d vec)
+{
+	Eigen::Matrix3d ned_to_enu;
+	ned_to_enu << 0, 1, 0,
+						    1, 0, 0,
+								0, 0, -1;
+	return ned_to_enu * vec;
+}
+
 void simulate()
 {
+
 	// Simulation parameters
 	double step_size = pow(10, -3);
 	int T = 50; // s, end time
@@ -13,7 +23,7 @@ void simulate()
 				0, 0.08, 0,
 				0, 0, 0.12; // From .urdf file
 	double m = 2.856;
-	Eigen::Vector3d gravity(0,0,-9.81);
+	Eigen::Vector3d gravity(0,0,9.81);
 
 	// Controller
 	Eigen::Vector3d ref(0,0,0);
@@ -27,8 +37,9 @@ void simulate()
 	Eigen::Vector3d pos_dot(0,0,0);
 	Eigen::Vector3d pos_ddot(0,0,0);
 
-	Eigen::Vector3d tau_ext(0,0,0);
+	Eigen::Quaterniond q_desired = EulerToQuat(0, 0, 0);
 	Eigen::Vector3d F_thrust(0,0,0);
+	Eigen::Vector3d tau_ext(0,0,0);
 
 	// Store values
 	std::vector<double> ts;
@@ -52,9 +63,11 @@ void simulate()
 	double t = 0;
 
 	controller::AdaptiveController attitude_controller;
-	attitude_controller.setRefSignal(EulerToQuat(ref));
+	controller::PositionController position_controller;
+	// TODO implement set ref signal for pos controller
 
-	F_thrust = m * gravity;
+	position_controller.setRefSignal(Eigen::Vector3d(1,1,-3));
+	attitude_controller.setAdaptive(true);
 
 	for (int i = 0; i < N; ++i)
 	{
@@ -70,15 +83,20 @@ void simulate()
 		//attitude_controller.setRefSignal(EulerToQuat(ref));
 
 		// Enable adaptive controller after 10 seconds
-		if (t > 15)
-			attitude_controller.setAdaptive(true);
+		/*if (t > 15)
+			attitude_controller.setAdaptive(true);*/
 
 		// Calculate control input
+		position_controller.controllerCallback(pos, pos_dot, q);
+		F_thrust(2) = -position_controller.getInputThrust();
+		q_desired = position_controller.getInputAttitude();
+
+		attitude_controller.setRefSignal(q_desired);
 		attitude_controller.controllerCallback(q, w, t);
 		tau_ext = attitude_controller.getInputTorques();
 
 		// ********
-		// Dynamics
+		// Dynamics : Everything is in NED frame
 		// ********
 
 		// Attitude
@@ -98,7 +116,7 @@ void simulate()
 		// Position
 		// Calculate derivatives
 		pos_dot = pos_dot;
-		pos_ddot = q._transformVector(-F_thrust / m) + gravity;
+		pos_ddot = q._transformVector(F_thrust / m) + gravity;
 
 		// Integrate using forward euler
 		pos = pos + step_size * pos_dot;
@@ -110,11 +128,11 @@ void simulate()
 
 		qs(i) = q;
 		ws(i) = w;
-		poss(i) = pos;
-		pos_dots(i) = pos_dot;
+		poss(i) = nedToEnu(pos); // Convert to ENU for plotting
+		pos_dots(i) = nedToEnu(pos_dot);
 		ws_adaptive_model(i) = attitude_controller.getAdaptiveModelAngVel();
 		cmds(i) = attitude_controller.getAttCmdSignal();
-		refs(i) = ref;
+		refs(i) = QuatToEuler(q_desired);
 		baseline_input_torques(i) = attitude_controller.getBaselineInput();
 		adaptive_input_torques(i) = attitude_controller.getAdaptiveInput();
 		Theta_hats(i) = attitude_controller.getThetaHat();
@@ -123,10 +141,11 @@ void simulate()
 	}
 
 	std::cout << "Plotting" << std::endl;
+	//plot_attitude(qs, refs, cmds, ts);
+	//plot_position(poss, ts);
+	plot_position3d(poss, ts);
 	//plot_input_torques(baseline_input_torques, adaptive_input_torques, ts);
 	//plot_adaptive_ref_model(ws, ws_adaptive_model, ts);
-	//plot_attitude(qs, refs, cmds, ts);
-	plot_position(poss, ts);
 	//plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
 	//plot_cmd(cmds, refs, ts);
 }
