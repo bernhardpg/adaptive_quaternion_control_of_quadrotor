@@ -7,12 +7,12 @@ void simulate()
 	int T = 50; // s, end time
 	int N = T / step_size; // Number of time steps
 
+	// Model parameters
 	double arm_length = 0.2;
 	double max_rotor_thrust = 14;
 	double max_thrust = max_rotor_thrust * 4;
 	double max_torque = arm_length * max_rotor_thrust * 2;
 
-	// Model parameters
 	Eigen::Matrix3d J;
 	J << 0.07, 0, 0,
 				0, 0.08, 0,
