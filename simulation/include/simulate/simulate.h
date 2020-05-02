@@ -7,6 +7,7 @@
 #include "controller/attitude_controller.h"
 #include "controller/position_controller.h"
 #include "plot/plotter.h"
+#include "tools/quat.h"
 #include "simulate/signal_generators.h"
 
 void simulate();

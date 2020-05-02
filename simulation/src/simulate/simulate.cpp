@@ -1,21 +1,16 @@
 #include "simulate/simulate.h"
 
-Eigen::Vector3d nedToEnu(Eigen::Vector3d vec)
-{
-	Eigen::Matrix3d ned_to_enu;
-	ned_to_enu << 0, 1, 0,
-						    1, 0, 0,
-								0, 0, -1;
-	return ned_to_enu * vec;
-}
-
 void simulate()
 {
-
 	// Simulation parameters
 	double step_size = pow(10, -3);
 	int T = 50; // s, end time
 	int N = T / step_size; // Number of time steps
+
+	double arm_length = 0.2;
+	double max_rotor_thrust = 14;
+	double max_thrust = max_rotor_thrust * 4;
+	double max_torque = arm_length * max_rotor_thrust * 2;
 	
 	// Model parameters
 	Eigen::Matrix3d J;
@@ -88,12 +83,15 @@ void simulate()
 
 		// Calculate control input
 		position_controller.controllerCallback(pos, pos_dot, q);
-		F_thrust(2) = -position_controller.getInputThrust();
+		F_thrust(2) = -saturate(position_controller.getInputThrust(), 0, max_thrust);
 		q_desired = position_controller.getInputAttitude();
 
 		attitude_controller.setRefSignal(q_desired);
 		attitude_controller.controllerCallback(q, w, t);
 		tau_ext = attitude_controller.getInputTorques();
+		tau_ext << saturate(tau_ext(0), -max_torque, max_torque),
+							 saturate(tau_ext(1), -max_torque, max_torque),
+							 saturate(tau_ext(2), -max_torque, max_torque);
 
 		// ********
 		// Dynamics : Everything is in NED frame
@@ -141,7 +139,7 @@ void simulate()
 	}
 
 	std::cout << "Plotting" << std::endl;
-	//plot_attitude(qs, refs, cmds, ts);
+	plot_attitude(qs, refs, cmds, ts);
 	//plot_position(poss, ts);
 	plot_position3d(poss, ts);
 	//plot_input_torques(baseline_input_torques, adaptive_input_torques, ts);

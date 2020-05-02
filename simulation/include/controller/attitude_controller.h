@@ -106,8 +106,6 @@ namespace controller {
 			void calculateAdaptiveInput();
       void calculateBaselineInput();
 			void calculateTotalInputTorques();
-
-      double saturate(double v, double min, double max); // TODO move somewhere else
   };
 
 

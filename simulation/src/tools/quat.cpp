@@ -1,5 +1,24 @@
 #include "tools/quat.h"
 
+Eigen::Vector3d nedToEnu(Eigen::Vector3d vec)
+{
+	Eigen::Matrix3d ned_to_enu;
+	ned_to_enu << 0, 1, 0,
+						    1, 0, 0,
+								0, 0, -1;
+	return ned_to_enu * vec;
+}
+
+double saturate(double v, double min, double max)
+{
+	v = v > max ? max : (
+			v < min ? min : v
+			);
+
+	return v;
+}
+
+
 // Note: also called hat map in litterature
 Eigen::Matrix3d cross_map(Eigen::Vector3d v)
 {

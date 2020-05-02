@@ -12,4 +12,5 @@ Eigen::Vector3d vee_map(Eigen::Matrix3d v_hat); // Inverse of cross_map
 Eigen::Vector3d quat_log_v(Eigen::Quaterniond q);
 Eigen::Quaterniond quat_plus_map(Eigen::Quaterniond q);
 
-
+double saturate(double v, double min, double max);
+Eigen::Vector3d nedToEnu(Eigen::Vector3d);

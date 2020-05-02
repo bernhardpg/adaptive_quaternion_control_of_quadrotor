@@ -270,22 +270,4 @@ namespace controller {
 		return	total_input_torques_;
 	}
 
-
-
-
-	// *****
-	// Tools 
-	// *****
-
-  double AdaptiveController::saturate(double v, double min, double max)
-  {
-    v = v > max ? max : (
-        v < min ? min : v
-        );
-
-    return v;
-  }
-
-
-
 } // namespace controller
