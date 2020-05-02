@@ -1,9 +1,10 @@
 #include "simulate/simulate.h"
+#include "simulate/simulate_drake.h"
 #include <iostream>
 
 int main(int argc, char* argv[])
 {
-	std::cout << "Starting simulation" << std::endl;
-	simulate();
+	//simulate();
+	simulate_drake();
 	return 0;
 }

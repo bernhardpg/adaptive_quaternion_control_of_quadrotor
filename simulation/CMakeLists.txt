@@ -17,6 +17,12 @@ include_directories(${EIGEN3_INCLUDE_DIR})
 find_package(Python3 COMPONENTS Development NumPy)
 include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
+# Include drake
+list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake/build/install)
+find_package(drake CONFIG REQUIRED)
+include_directories(${drake_INCLUDE_DIRS})
+
+
 # add include directory
 include_directories(include)
 
@@ -24,9 +30,10 @@ include_directories(include)
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
-target_link_libraries(${PROJECT_NAME} simulate)
-target_link_libraries(${PROJECT_NAME} plotter)
 target_link_libraries(${PROJECT_NAME} signal_generator)
+target_link_libraries(${PROJECT_NAME} simulate)
+target_link_libraries(${PROJECT_NAME} simulate_drake)
+target_link_libraries(${PROJECT_NAME} plotter)
 
 add_library(attitude_controller src/controller/attitude_controller.cpp)
 target_link_libraries(attitude_controller Eigen3::Eigen)
@@ -46,6 +53,10 @@ target_link_libraries(simulate position_controller)
 target_link_libraries(simulate plotter)
 
 add_library(signal_generator src/simulate/signal_generators.cpp)
+
+add_library(simulate_drake src/simulate/simulate_drake.cpp)
+target_link_libraries(simulate_drake drake::drake)
+
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter quat_tools)

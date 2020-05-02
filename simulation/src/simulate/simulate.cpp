@@ -11,7 +11,7 @@ void simulate()
 	double max_rotor_thrust = 14;
 	double max_thrust = max_rotor_thrust * 4;
 	double max_torque = arm_length * max_rotor_thrust * 2;
-	
+
 	// Model parameters
 	Eigen::Matrix3d J;
 	J << 0.07, 0, 0,
@@ -54,7 +54,9 @@ void simulate()
 	// ************
 	// Simulate dynamics
 	// ************
-	
+
+	std::cout << "Running simulation" << std::endl;
+
 	double t = 0;
 
 	controller::AdaptiveController attitude_controller;
