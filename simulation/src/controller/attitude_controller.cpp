@@ -25,7 +25,7 @@ namespace controller {
 		// *******
 		// Trajectory generator params
 		// *******
-    time_step_ = pow(10, -3); // Taken from simulation
+    step_size_ = pow(10, -3); // From simulation
 
     cmd_w_0_ = 30.0; // Bandwidth
     cmd_damping_ = 1.0; // Damping
@@ -116,9 +116,9 @@ namespace controller {
     // Note: w_c_dot_ = u_c in the paper
 
     // Integrate using forward Euler:
-    q_c_.w() = q_c_.w() + time_step_ * q_c_dot.w();
-    q_c_.vec() = q_c_.vec() + time_step_ * q_c_dot.vec();
-    w_c_ = w_c_ + time_step_ * w_c_dot_;
+    q_c_.w() = q_c_.w() + step_size_ * q_c_dot.w();
+    q_c_.vec() = q_c_.vec() + step_size_ * q_c_dot.vec();
+    w_c_ = w_c_ + step_size_ * w_c_dot_;
 
     // Calculate body frame values
     w_c_body_frame_ = q_e_.conjugate()._transformVector(w_c_);
@@ -137,7 +137,7 @@ namespace controller {
 	{
 		// Define signals
 		Eigen::Matrix3d A_m;
-		Eigen::Vector3d r; // TODO define generally?
+		Eigen::Vector3d r;
 
 		A_m = - k_w_ * Eigen::Matrix3d::Identity() - cross_map(w_c_body_frame_);
 		r = w_c_dot_body_frame_
@@ -149,7 +149,7 @@ namespace controller {
 		w_adaptive_model_dot = A_m * w_adaptive_model_ + r - k_e_ * e_adaptive_model_;
 	
 		// Forward euler
-		w_adaptive_model_ = w_adaptive_model_ + time_step_ * w_adaptive_model_dot;
+		w_adaptive_model_ = w_adaptive_model_ + step_size_ * w_adaptive_model_dot;
 
 		// Calculate adaptive model error
 		e_adaptive_model_ = w_adaptive_model_ - w_;
@@ -173,9 +173,9 @@ namespace controller {
 		Theta_hat_dot = - adaptive_gain_Theta_ * P_ * e_adaptive_model_ * Phi_.transpose();
 
 		// Forward euler
-		tau_dist_hat_ = tau_dist_hat_ + time_step_ * tau_dist_hat_dot;
-		Lambda_hat_ = Lambda_hat_ + time_step_ * Lambda_hat_dot;
-		Theta_hat_ = Theta_hat_ + time_step_ * Theta_hat_dot;
+		tau_dist_hat_ = tau_dist_hat_ + step_size_ * tau_dist_hat_dot;
+		Lambda_hat_ = Lambda_hat_ + step_size_ * Lambda_hat_dot;
+		Theta_hat_ = Theta_hat_ + step_size_ * Theta_hat_dot;
 	}
 
 	void AdaptiveController::calculateAdaptiveInput()

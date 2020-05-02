@@ -91,7 +91,7 @@ namespace controller {
       // *******
 			// Trajectory generator
       // *******
-      double time_step_;
+      double step_size_;
       double cmd_w_0_; // Bandwidth
       double cmd_damping_;
 

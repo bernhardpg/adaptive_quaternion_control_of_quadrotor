@@ -10,7 +10,7 @@ namespace controller {
   void PositionController::init()
   {
     // Initialize model parameters
-    m_ = 2.81; // kg
+    m_ = 2.856; // kg
     g_ = 9.8; // m/s**2
 
 		// Initialize variables

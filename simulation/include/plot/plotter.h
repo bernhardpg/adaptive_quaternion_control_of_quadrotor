@@ -8,6 +8,11 @@
 
 namespace plt = matplotlibcpp;
 
+void plot_position(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		std::vector<double> ts
+		);
+
 void plot_adaptive_params(
 		Eigen::VectorX<Eigen::Matrix3d> Theta_hat,
 		Eigen::VectorX<Eigen::Matrix3d> Lambda_hat,

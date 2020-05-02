@@ -1,5 +1,32 @@
 #include "plot/plotter.h"
 
+void plot_position(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> pos_xs, pos_ys, pos_zs;
+
+	for (int i = 0; i < ts.size(); ++i)
+	{
+		pos_xs.push_back(poss(i)(0));
+		pos_ys.push_back(poss(i)(1));
+		pos_zs.push_back(poss(i)(2));
+	}
+
+	plt::plot(ts, pos_xs);
+	plt::title("x-pos");
+	plt::show();
+
+	plt::plot(ts, pos_ys);
+	plt::title("y-pos");
+	plt::show();
+
+	plt::plot(ts, pos_zs);
+	plt::title("z-pos");
+	plt::show();
+}
+
 void plot_adaptive_params(
 		Eigen::VectorX<Eigen::Matrix3d> Theta_hat,
 		Eigen::VectorX<Eigen::Matrix3d> Lambda_hat,
