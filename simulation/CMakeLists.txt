@@ -32,6 +32,10 @@ add_library(attitude_controller src/controller/attitude_controller.cpp)
 target_link_libraries(attitude_controller Eigen3::Eigen)
 target_link_libraries(attitude_controller quat_tools)
 
+add_library(position_controller src/controller/position_controller.cpp)
+target_link_libraries(position_controller Eigen3::Eigen)
+target_link_libraries(position_controller quat_tools)
+
 add_library(quat_tools src/tools/quat.cpp)
 target_link_libraries(quat_tools Eigen3::Eigen)
 
