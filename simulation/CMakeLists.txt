@@ -34,6 +34,7 @@ target_link_libraries(${PROJECT_NAME} signal_generator)
 target_link_libraries(${PROJECT_NAME} simulate)
 target_link_libraries(${PROJECT_NAME} simulate_drake)
 target_link_libraries(${PROJECT_NAME} plotter)
+#target_link_libraries(${PROJECT_NAME} controller_drake)
 
 add_library(attitude_controller src/controller/attitude_controller.cpp)
 target_link_libraries(attitude_controller Eigen3::Eigen)
@@ -53,10 +54,17 @@ target_link_libraries(simulate position_controller)
 target_link_libraries(simulate plotter)
 
 add_library(signal_generator src/simulate/signal_generators.cpp)
+target_link_libraries(signal_generator Eigen3::Eigen)
+
+add_library(controller_drake src/simulate/controller_drake.cpp)
+#target_link_libraries(controller_drake Eigen3::Eigen)
+target_link_libraries(controller_drake drake::drake)
+#target_link_libraries(controller_drake attitude_controller)
+#target_link_libraries(controller_drake position_controller)
 
 add_library(simulate_drake src/simulate/simulate_drake.cpp)
 target_link_libraries(simulate_drake drake::drake)
-
+target_link_libraries(simulate_drake controller_drake)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter quat_tools)
