@@ -20,21 +20,21 @@ namespace controller {
 									0, 0.08, 0,
 									0, 0, 0.12; // From .urdf file
 		// Augment inertia matrix to not be perfectly identified
-		J_nominal_ += est_errors;
+		J_nominal_ += est_errors * 20;
 
 		// *******
 		// Trajectory generator params
 		// *******
     step_size_ = pow(10, -3); // From simulation
 
-    cmd_w_0_ = 10.0; // Bandwidth
+    cmd_w_0_ = 11.0; // Bandwidth
     cmd_damping_ = 1.0; // Damping
 
 		// *******
     // Controller params
 		// *******
-    k_q_ = 1.0;
-    k_w_ = 1.0;
+    k_q_ = 20.0;
+    k_w_ = 20.0;
 
 		// *******
 		// Adaptive controller
@@ -92,9 +92,12 @@ namespace controller {
     generateCommandSignal();
     calculateErrors();
     calculateBaselineInput();
-		calculateAdaptiveReferenceErrors();
-		calculateAdaptiveParameters();
-		calculateAdaptiveInput();
+		if (enable_adaptive_controller_)
+		{
+			calculateAdaptiveReferenceErrors();
+			calculateAdaptiveParameters();
+			calculateAdaptiveInput();
+		}
 		calculateTotalInputTorques();
   }
 
