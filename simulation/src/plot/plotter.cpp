@@ -64,17 +64,17 @@ void plot_position(
 	}
 
 	plt::plot(ts, pos_xs);
-	plt::plot(ts, ref_pos_xs);
+	plt::plot(ts, ref_pos_xs, "g--");
 	plt::title("x-pos");
 	plt::show();
 
 	plt::plot(ts, pos_ys);
-	plt::plot(ts, ref_pos_ys);
+	plt::plot(ts, ref_pos_ys, "g--");
 	plt::title("y-pos");
 	plt::show();
 
 	plt::plot(ts, pos_zs);
-	plt::plot(ts, ref_pos_zs);
+	plt::plot(ts, ref_pos_zs, "g--");
 	plt::title("z-pos");
 	plt::show();
 }
@@ -187,6 +187,41 @@ void plot_adaptive_params(
 
 
 void plot_input_torques(
+		Eigen::VectorX<Eigen::Vector3d> input_torques,
+		Eigen::Vector3d limits,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> tau_x, tau_y, tau_z;
+	std::vector<double> limit_x, limit_y, limit_z;
+	std::vector<double> neg_limit_x, neg_limit_y, neg_limit_z;
+	for (int i = 0; i < input_torques.size(); ++i)
+	{
+		tau_x.push_back(input_torques(i)(0));
+		tau_y.push_back(input_torques(i)(1));
+		tau_z.push_back(input_torques(i)(2));
+
+		limit_x.push_back(limits(0));
+		neg_limit_x.push_back(-limits(0));
+		limit_y.push_back(limits(1));
+		neg_limit_y.push_back(-limits(1));
+	}
+
+	plt::plot(ts, tau_x);
+	plt::plot(ts, limit_x, "b--");
+	plt::plot(ts, neg_limit_x, "b--");
+	plt::title("tau_x");
+	plt::show();
+
+	plt::plot(ts, tau_y);
+	plt::plot(ts, limit_y, "b--");
+	plt::plot(ts, neg_limit_y, "b--");
+	plt::title("tau_y");
+	plt::show();
+}
+
+
+void plot_input_torques(
 		Eigen::VectorX<Eigen::Vector3d> baseline_input_torques,
 		Eigen::VectorX<Eigen::Vector3d> adaptive_input_torques,
 		std::vector<double> ts
@@ -205,17 +240,17 @@ void plot_input_torques(
 		adaptive_tau_z.push_back(adaptive_input_torques(i)(2));
 	}
 
-//	plt::plot(ts, baseline_tau_x, "b--");
+	plt::plot(ts, baseline_tau_x, "b--");
 	plt::plot(ts, adaptive_tau_x);
 	plt::title("tau_x");
 	plt::show();
 
-//	plt::plot(ts, baseline_tau_y, "b--");
+	plt::plot(ts, baseline_tau_y, "b--");
 	plt::plot(ts, adaptive_tau_y);
 	plt::title("tau_y");
 	plt::show();
 
-//	plt::plot(ts, baseline_tau_y, "b--");
+	plt::plot(ts, baseline_tau_y, "b--");
 	plt::plot(ts, adaptive_tau_y);
 	plt::title("tau_y");
 	plt::show();
@@ -288,19 +323,19 @@ void plot_attitude(
 	}
 
 	plt::plot(ts, roll);
-	plt::plot(ts, ref_roll);
+	plt::plot(ts, ref_roll, "g--");
 	plt::plot(ts, cmd_roll, "b--");
 	plt::title("Roll");
 	plt::show();
 
 	plt::plot(ts, pitch);
-	plt::plot(ts, ref_pitch);
+	plt::plot(ts, ref_pitch, "g--");
 	plt::plot(ts, cmd_pitch, "b--");
 	plt::title("Pitch");
 	plt::show();
 
 	plt::plot(ts, yaw);
-	plt::plot(ts, ref_yaw);
+	plt::plot(ts, ref_yaw, "g--");
 	plt::plot(ts, cmd_yaw, "b--");
 	plt::title("Yaw");
 	plt::ylim(-0.4, 0.4);

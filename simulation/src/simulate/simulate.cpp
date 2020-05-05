@@ -8,24 +8,9 @@ void simulate()
 	int N = T / step_size; // Number of time steps
 
 	double arm_length = 0.2;
-	double max_rotor_thrust = 14;
+	double max_rotor_thrust = 1.4 * 9.81; // N
 	double max_thrust = max_rotor_thrust * 4;
 	double max_torque = arm_length * max_rotor_thrust * 2;
-
-	Eigen::VectorX<Eigen::Vector3d> ref_traj(N);
-	// Create reference trajectory
-	double th = 0;
-	double radius = 4;
-	for (int i = 0; i < N; ++i)
-	{
-		th = (double)i * (4 * M_PI / (double)N);
-		Eigen::Vector3d r_t;							
-		r_t << radius * cos(th),
-					 radius * sin(th),
-					 - (i * 2) / (double) N;
-
-		ref_traj(i) = r_t;
-	}
 
 	// Model parameters
 	Eigen::Matrix3d J;
@@ -44,9 +29,13 @@ void simulate()
 	Eigen::Vector3d pos_dot(0,0,0);
 	Eigen::Vector3d pos_ddot(0,0,0);
 
-	Eigen::Quaterniond q_desired = EulerToQuat(0, 0, 0);
+	Eigen::Quaterniond ref_attitude = EulerToQuat(0, 0, 0);
 	Eigen::Vector3d F_thrust(0,0,0);
 	Eigen::Vector3d tau_ext(0,0,0);
+	Eigen::Vector3d tau_c(0,0,0);
+	Eigen::Vector3d tau_dist(0,0,0);
+
+	Eigen::VectorX<Eigen::Vector3d> ref_traj(N);
 
 	// Store values
 	std::vector<double> ts;
@@ -56,8 +45,9 @@ void simulate()
 	Eigen::VectorX<Eigen::Vector3d> ref_poss(N);
 	Eigen::VectorX<Eigen::Vector3d> pos_dots(N);
 	Eigen::VectorX<Eigen::Quaterniond> cmds(N);
-	Eigen::VectorX<Eigen::Vector3d> refs(N);
+	Eigen::VectorX<Eigen::Vector3d> ref_attitudes(N);
 	Eigen::VectorX<Eigen::Vector3d> ws_adaptive_model(N);
+	Eigen::VectorX<Eigen::Vector3d> input_torques(N);
 	Eigen::VectorX<Eigen::Vector3d> baseline_input_torques(N);
 	Eigen::VectorX<Eigen::Vector3d> adaptive_input_torques(N);
 	Eigen::VectorX<Eigen::Matrix3d> Theta_hats(N);
@@ -72,10 +62,30 @@ void simulate()
 
 	controller::AdaptiveController attitude_controller;
 	controller::PositionController position_controller;
-	// TODO implement set ref signal for pos controller
 
 	position_controller.setRefSignal(Eigen::Vector3d(0,0,-1));
-	attitude_controller.setAdaptive(true);
+
+	std::string test_mode = "att_square_weight";
+	// Test modes:
+	//	att_square
+	//	att_square_weight
+	//  pos_tracking
+	//  pos_tracking_weight
+
+	if (test_mode == "pos_tracking" || test_mode == "pos_tracking_weight")
+	{
+		ref_traj = getRefTrajCircular(N);
+		attitude_controller.setAdaptive(true);
+	}
+	else if (test_mode == "att_square")
+	{
+		attitude_controller.setAdaptive(false);
+	}
+	else if (test_mode == "att_square_weight")
+	{
+		attitude_controller.setAdaptive(false);
+	}
+
 
 	for (int i = 0; i < N; ++i)
 	{
@@ -86,31 +96,56 @@ void simulate()
 		// Controller
 		// **********
 
-		// Send current reference signal to controller
-		//Eigen::Vector3d ref = getRefSignalSquare(t);
-		//attitude_controller.setRefSignal(EulerToQuat(ref));
+		if (test_mode == "att_square" || test_mode == "att_square_weight")
+		{
+			// Enable adaptive controller after 10 seconds
+			if (t > 15)
+				attitude_controller.setAdaptive(true);
 
-		// Enable adaptive controller after 10 seconds
-		/*if (t > 15)
-			attitude_controller.setAdaptive(true);*/
+			// Send current reference signal to controller
+			ref_attitude = EulerToQuat(getRefSignalSquare(t));
+			attitude_controller.setRefSignal(ref_attitude);
+		}
+		if (test_mode == "att_square_weight")
+		{
+			double roll = QuatToEuler(q)(0);
+			tau_dist << 0.20 * 9.81 * arm_length * cos(roll), 0, 0;
+		}
+		if (test_mode == "pos_tracking" || test_mode == "pos_tracking_weight")
+		{
+			position_controller.setRefSignal(ref_traj[i]);
 
-		position_controller.setRefSignal(ref_traj[i]);
-		
+			if (test_mode == "pos_tracking_weight")
+			{
+				if (t > 25)
+				{
+					double roll = QuatToEuler(q)(0);
+					tau_dist << 0.3 * 9.81 * arm_length * cos(roll), 0, 0;
+				}
+			}
+		}
+
 		// Calculate control input
 		position_controller.controllerCallback(pos, pos_dot, q);
 		F_thrust(2) = -saturate(position_controller.getInputThrust(), 0, max_thrust);
-		q_desired = position_controller.getInputAttitude();
 
-		attitude_controller.setRefSignal(q_desired);
+		if (test_mode == "pos_tracking" || test_mode == "pos_tracking_weight")
+		{
+			ref_attitude = position_controller.getInputAttitude();
+			attitude_controller.setRefSignal(ref_attitude);
+		}
+
 		attitude_controller.controllerCallback(q, w, t);
-		tau_ext = attitude_controller.getInputTorques();
-		tau_ext << saturate(tau_ext(0), -max_torque, max_torque),
-							 saturate(tau_ext(1), -max_torque, max_torque),
-							 saturate(tau_ext(2), -max_torque, max_torque);
+		tau_c = attitude_controller.getInputTorques();
+
+		tau_c << saturate(tau_c(0), -max_torque, max_torque),
+						 saturate(tau_c(1), -max_torque, max_torque),
+						 saturate(tau_c(2), -max_torque, max_torque);
 
 		// ********
 		// Dynamics : Everything is in NED frame
 		// ********
+		tau_ext = tau_c + tau_dist;
 
 		// Attitude
 		// Calculate derivatives
@@ -146,7 +181,8 @@ void simulate()
 		pos_dots(i) = nedToEnu(pos_dot);
 		ws_adaptive_model(i) = attitude_controller.getAdaptiveModelAngVel();
 		cmds(i) = attitude_controller.getAttCmdSignal();
-		refs(i) = QuatToEuler(q_desired);
+		ref_attitudes(i) = QuatToEuler(ref_attitude);
+		input_torques(i) = tau_c;
 		baseline_input_torques(i) = attitude_controller.getBaselineInput();
 		adaptive_input_torques(i) = attitude_controller.getAdaptiveInput();
 		Theta_hats(i) = attitude_controller.getThetaHat();
@@ -155,11 +191,12 @@ void simulate()
 	}
 
 	std::cout << "Plotting" << std::endl;
-	plot_attitude(qs, refs, cmds, ts);
+	plot_attitude(qs, ref_attitudes, cmds, ts);
 	plot_position(poss, ref_poss, ts);
 	plot_position3d(poss, ref_poss);
 	//plot_input_torques(baseline_input_torques, adaptive_input_torques, ts);
+	plot_input_torques(input_torques, Eigen::Vector3d(max_torque, max_torque, max_torque), ts);
 	//plot_adaptive_ref_model(ws, ws_adaptive_model, ts);
-	//plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
-	//plot_cmd(cmds, refs, ts);
+	plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
+	//plot_cmd(cmds, ref_attitudes, ts);
 }

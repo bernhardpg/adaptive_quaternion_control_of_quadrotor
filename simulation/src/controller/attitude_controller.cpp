@@ -20,14 +20,14 @@ namespace controller {
 									0, 0.08, 0,
 									0, 0, 0.12; // From .urdf file
 		// Augment inertia matrix to not be perfectly identified
-		J_nominal_ += est_errors * 3;
+		J_nominal_ += est_errors;
 
 		// *******
 		// Trajectory generator params
 		// *******
     step_size_ = pow(10, -3); // From simulation
 
-    cmd_w_0_ = 30.0; // Bandwidth
+    cmd_w_0_ = 10.0; // Bandwidth
     cmd_damping_ = 1.0; // Damping
 
 		// *******

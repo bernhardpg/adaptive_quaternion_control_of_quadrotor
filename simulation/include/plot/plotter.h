@@ -36,6 +36,12 @@ void plot_adaptive_params(
 		);
 
 void plot_input_torques(
+		Eigen::VectorX<Eigen::Vector3d> input_torques,
+		Eigen::Vector3d limits,
+		std::vector<double> ts
+		);
+
+void plot_input_torques(
 		Eigen::VectorX<Eigen::Vector3d> baseline_input_torques,
 		Eigen::VectorX<Eigen::Vector3d> adaptive_input_torques,
 		std::vector<double> ts
