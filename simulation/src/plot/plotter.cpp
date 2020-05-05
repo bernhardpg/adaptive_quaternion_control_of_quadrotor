@@ -1,13 +1,12 @@
 #include "plot/plotter.h"
 
 void plot_position3d(
-		Eigen::VectorX<Eigen::Vector3d> poss,
-		std::vector<double> ts
+		Eigen::VectorX<Eigen::Vector3d> poss
 		)
 {
 	std::vector<double> pos_xs, pos_ys, pos_zs;
 
-	for (int i = 0; i < ts.size(); ++i)
+	for (int i = 0; i < poss.size(); ++i)
 	{
 		pos_xs.push_back(poss(i)(0));
 		pos_ys.push_back(poss(i)(1));
@@ -16,6 +15,67 @@ void plot_position3d(
 
 	plt::plot3(pos_xs, pos_ys, pos_zs);
 	plt::title("3D-position");
+	plt::show();
+}
+
+void plot_position3d(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		Eigen::VectorX<Eigen::Vector3d> ref_poss
+		)
+{
+	std::vector<double> pos_xs, pos_ys, pos_zs;
+	std::vector<double> ref_pos_xs, ref_pos_ys, ref_pos_zs;
+
+	for (int i = 0; i < poss.size(); ++i)
+	{
+		pos_xs.push_back(poss(i)(0));
+		pos_ys.push_back(poss(i)(1));
+		pos_zs.push_back(poss(i)(2));
+
+		ref_pos_xs.push_back(ref_poss(i)(0));
+		ref_pos_ys.push_back(ref_poss(i)(1));
+		ref_pos_zs.push_back(ref_poss(i)(2));
+	}
+
+	plt::plot3(ref_pos_xs, ref_pos_ys, ref_pos_zs);
+	plt::plot3(pos_xs, pos_ys, pos_zs);
+	plt::title("3D-position");
+	plt::show();
+}
+
+void plot_position(
+		Eigen::VectorX<Eigen::Vector3d> poss,
+		Eigen::VectorX<Eigen::Vector3d> ref_poss,
+		std::vector<double> ts
+		)
+{
+	std::vector<double> pos_xs, pos_ys, pos_zs;
+	std::vector<double> ref_pos_xs, ref_pos_ys, ref_pos_zs;
+
+	for (int i = 0; i < ts.size(); ++i)
+	{
+		pos_xs.push_back(poss(i)(0));
+		pos_ys.push_back(poss(i)(1));
+		pos_zs.push_back(poss(i)(2));
+
+		ref_pos_xs.push_back(ref_poss(i)(0));
+		ref_pos_ys.push_back(ref_poss(i)(1));
+		ref_pos_zs.push_back(ref_poss(i)(2));
+	}
+
+	plt::plot(ts, pos_xs);
+	plt::plot(ts, ref_pos_xs);
+	plt::title("x-pos");
+	plt::show();
+
+	plt::plot(ts, pos_ys);
+	plt::plot(ts, ref_pos_ys);
+	plt::title("y-pos");
+	plt::show();
+
+	plt::plot(ts, pos_zs);
+	plt::plot(ts, ref_pos_zs);
+	plt::title("z-pos");
 	plt::show();
 }
 

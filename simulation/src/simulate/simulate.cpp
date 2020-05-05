@@ -11,7 +11,22 @@ void simulate()
 	double max_rotor_thrust = 14;
 	double max_thrust = max_rotor_thrust * 4;
 	double max_torque = arm_length * max_rotor_thrust * 2;
-	
+
+	Eigen::VectorX<Eigen::Vector3d> ref_traj(N);
+	// Create reference trajectory
+	double th = 0;
+	double radius = 4;
+	for (int i = 0; i < N; ++i)
+	{
+		th = (double)i * (4 * M_PI / (double)N);
+		Eigen::Vector3d r_t;							
+		r_t << radius * cos(th),
+					 radius * sin(th),
+					 - (i * 2) / (double) N;
+
+		ref_traj(i) = r_t;
+	}
+
 	// Model parameters
 	Eigen::Matrix3d J;
 	J << 0.07, 0, 0,
@@ -19,9 +34,6 @@ void simulate()
 				0, 0, 0.12; // From .urdf file
 	double m = 2.856;
 	Eigen::Vector3d gravity(0,0,9.81);
-
-	// Controller
-	Eigen::Vector3d ref(0,0,0);
 
 	// Variables
 	Eigen::Quaterniond q = EulerToQuat(0, 0, 0);
@@ -41,6 +53,7 @@ void simulate()
 	Eigen::VectorX<Eigen::Quaterniond> qs(N);
 	Eigen::VectorX<Eigen::Vector3d> ws(N);
 	Eigen::VectorX<Eigen::Vector3d> poss(N);
+	Eigen::VectorX<Eigen::Vector3d> ref_poss(N);
 	Eigen::VectorX<Eigen::Vector3d> pos_dots(N);
 	Eigen::VectorX<Eigen::Quaterniond> cmds(N);
 	Eigen::VectorX<Eigen::Vector3d> refs(N);
@@ -61,7 +74,7 @@ void simulate()
 	controller::PositionController position_controller;
 	// TODO implement set ref signal for pos controller
 
-	position_controller.setRefSignal(Eigen::Vector3d(1,1,-3));
+	position_controller.setRefSignal(Eigen::Vector3d(0,0,-1));
 	attitude_controller.setAdaptive(true);
 
 	for (int i = 0; i < N; ++i)
@@ -81,6 +94,8 @@ void simulate()
 		/*if (t > 15)
 			attitude_controller.setAdaptive(true);*/
 
+		position_controller.setRefSignal(ref_traj[i]);
+		
 		// Calculate control input
 		position_controller.controllerCallback(pos, pos_dot, q);
 		F_thrust(2) = -saturate(position_controller.getInputThrust(), 0, max_thrust);
@@ -127,6 +142,7 @@ void simulate()
 		qs(i) = q;
 		ws(i) = w;
 		poss(i) = nedToEnu(pos); // Convert to ENU for plotting
+		ref_poss(i) = nedToEnu(ref_traj(i)); // Convert to ENU for plotting
 		pos_dots(i) = nedToEnu(pos_dot);
 		ws_adaptive_model(i) = attitude_controller.getAdaptiveModelAngVel();
 		cmds(i) = attitude_controller.getAttCmdSignal();
@@ -140,8 +156,8 @@ void simulate()
 
 	std::cout << "Plotting" << std::endl;
 	plot_attitude(qs, refs, cmds, ts);
-	//plot_position(poss, ts);
-	plot_position3d(poss, ts);
+	plot_position(poss, ref_poss, ts);
+	plot_position3d(poss, ref_poss);
 	//plot_input_torques(baseline_input_torques, adaptive_input_torques, ts);
 	//plot_adaptive_ref_model(ws, ws_adaptive_model, ts);
 	//plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);

@@ -20,7 +20,7 @@ namespace controller {
 									0, 0.08, 0,
 									0, 0, 0.12; // From .urdf file
 		// Augment inertia matrix to not be perfectly identified
-		J_nominal_ += est_errors;
+		J_nominal_ += est_errors * 3;
 
 		// *******
 		// Trajectory generator params
