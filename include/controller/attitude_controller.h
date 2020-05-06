@@ -1,39 +1,34 @@
 #pragma once
 
-#include <ros/ros.h>
+#include <iostream>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <nav_msgs/Odometry.h>
 #include <cmath>
-#include "rosflight_msgs/Command.h"
-#include "rosflight_msgs/Attitude.h"
+#include "tools/quat.h"
 
 namespace controller {
-  typedef struct
-  {
-    Eigen::Vector3d tau;
-    double F;
-  } input_t;
-
   class AdaptiveController
   {
     public:
-      AdaptiveController(ros::NodeHandle *nh);
-    private:
-      // *******
-      // ROS
-      // *******
-      ros::NodeHandle nh_;
-      ros::Publisher command_publisher_;
-      ros::Subscriber odom_subscriber_;
-      ros::Subscriber attitude_command_subscriber_;
+      AdaptiveController();
 
-      ros::Publisher attitude_publisher_;
-      ros::Publisher attitude_ref_publisher;
-      ros::Publisher attitude_cmd_traj_publisher;
-      ros::Publisher attitude_cmd_traj_quat_publisher;
-      ros::Publisher w_c_msg_publisher;
-      ros::Publisher w_bc_msg_publisher;
+			void controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t);
+
+			Eigen::Quaterniond getAttCmdSignal();
+			Eigen::Vector3d getAdaptiveModelAngVel();
+			Eigen::Vector3d getAdaptiveModelError();
+			Eigen::Vector3d getBaselineInput();
+			Eigen::Vector3d getAdaptiveInput();
+			Eigen::Vector3d getInputTorques();
+			Eigen::Matrix3d getThetaHat();
+			Eigen::Matrix3d getLambdaHat();
+			Eigen::Vector3d getTauDistHat();
+
+			void setAdaptive(bool enable_adaptive_controller);
+			void setRefSignal(Eigen::Quaterniond q_ref);
+
+    private:
+			double t_;
 
       // *******
       // Signals
@@ -49,61 +44,69 @@ namespace controller {
       // (only needs to be piecewise continuous)
       Eigen::Quaterniond q_r_;
       Eigen::Vector3d att_ref_euler_; // radians
-      ros::Time start_time_;
 
       // Command
       // (generated from the reference signal)
       Eigen::Quaterniond q_c_;
       Eigen::Vector3d w_c_; // Given in command frame
       Eigen::Vector3d w_c_dot_;
-      Eigen::Vector3d w_c_body_frame;
-      Eigen::Vector3d w_c_dot_body_frame;
-
+      Eigen::Vector3d w_c_body_frame_;
+      Eigen::Vector3d w_c_dot_body_frame_;
 
       // *******
       // Model parameters
       // *******
-      double max_thrust_;
-      double max_torque_;
-      Eigen::Matrix3d J_; // Inertia matrix
+      Eigen::Matrix3d J_nominal_; // Inertia matrix
 
       // *******
       // Controller
       // *******
-      input_t input_;
+			Eigen::Vector3d tau_baseline_; // Control input from baseline controller
+			Eigen::Vector3d tau_adaptive_; // Control input from adaptive controller
       double k_q_;
       double k_w_;
-      double time_step_;
-      bool stabilize_curr_pos_;
+			Eigen::Vector3d total_input_torques_; // Control input from adaptive controller
+
+			// *******
+			// Adaptive controller
+			// *******
+			double k_e_; // Gain on error feedback in closed loop ref model
+			bool enable_adaptive_controller_;
+
+			Eigen::Matrix3d adaptive_gain_Theta_;
+			Eigen::Matrix3d adaptive_gain_Lambda_;
+			double adaptive_gain_tau_;
+
+			Eigen::Matrix3d Lambda_hat_; // Control effectiveness
+			Eigen::Matrix3d Theta_hat_; // Adaptive parameters
+			Eigen::Vector3d tau_dist_hat_; // Angular acceleration disturbance
+
+			Eigen::Vector3d Phi_; // Regressor: known vector of basis functions
+			Eigen::Matrix3d Theta_nominal_;
+			Eigen::Matrix3d P_;
+
+			Eigen::Vector3d w_adaptive_model_;
+			Eigen::Vector3d e_adaptive_model_;
+
+      // *******
+			// Trajectory generator
+      // *******
+      double step_size_;
+      double cmd_w_0_; // Bandwidth
+      double cmd_damping_;
 
       // *******
       // Functions
       // *******
       void init();
-      void refSignalCallback();
       void generateCommandSignal();
-
       void calculateErrors();
-      void computeInput();
-      void publishCommand();
-      void odomCallback(const rosflight_msgs::Attitude::ConstPtr &msg);
-      void commandCallback(const rosflight_msgs::Command::ConstPtr& msg);
-
-      double saturate(double v, double min, double max); // TODO move somewhere else
-
-      // TODO move somewhere else
-      Eigen::Matrix3d cross_map(Eigen::Vector3d v);
-      Eigen::Vector3d vee_map(Eigen::Matrix3d v_hat); // Inverse of cross_map
-      Eigen::Vector3d quat_log_v(Eigen::Quaterniond q);
-      Eigen::Quaterniond quat_plus_map(Eigen::Quaterniond q);
-
-      //Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
-      //Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
-
-      void publish_attitude_tracking();
+			void calculateAdaptiveParameters();
+			void calculateAdaptiveReferenceErrors();
+			void calculateAdaptiveInput();
+      void calculateBaselineInput();
+			void calculateTotalInputTorques();
   };
 
-  Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
-  Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
 
 }

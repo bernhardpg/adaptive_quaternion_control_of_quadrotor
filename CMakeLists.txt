@@ -1,88 +1,55 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(adaptive_attitude_controller)
+cmake_minimum_required(VERSION 3.10)
 
-## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+# set the project name
+project(adaptive_attitude_controller VERSION 1.0)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
+# specify the C++ standard
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  rosflight_msgs
-  std_msgs
-  nav_msgs
-)
+# debug
+set(CMAKE_BUILD_TYPE Debug)
 
-# Specify Eigen path to make sure Eigen::all etc are included
-list(APPEND CMAKE_PREFIX_PATH /usr/local/include/eigen3/Eigen)
-find_package(
-  Eigen3 3.3.90 REQUIRED
-)
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
+find_package(Python3 COMPONENTS Development NumPy)
+include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+# add include directory
+include_directories(include)
 
+# add executables
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} simulate)
+target_link_libraries(${PROJECT_NAME} plotter)
+target_link_libraries(${PROJECT_NAME} signal_generator)
 
-###################################
-## catkin specific configuration ##
-###################################
+add_library(attitude_controller src/controller/attitude_controller.cpp)
+target_link_libraries(attitude_controller Eigen3::Eigen)
+target_link_libraries(attitude_controller quat_tools)
 
-catkin_package(
-  INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIRS}
-  CATKIN_DEPENDS roscpp rospy eigen_conversions
-    rosflight_msgs std_msgs nav_msgs sensor_msgs roslib
-  DEPENDS EIGEN3
-)
+add_library(position_controller src/controller/position_controller.cpp)
+target_link_libraries(position_controller Eigen3::Eigen)
+target_link_libraries(position_controller quat_tools)
 
-###########
-## Build ##
-###########
+add_library(quat_tools src/tools/quat.cpp)
+target_link_libraries(quat_tools Eigen3::Eigen)
 
-## Specify additional locations of header files
-## Your package locations should be listed before other locations
-include_directories(
- include
- ${catkin_INCLUDE_DIRS}
- ${EIGEN3_INCLUDE_DIRS}
-)
+add_library(simulate src/simulate/simulate.cpp)
+target_link_libraries(simulate Eigen3::Eigen)
+target_link_libraries(simulate attitude_controller)
+target_link_libraries(simulate position_controller)
+target_link_libraries(simulate plotter)
+target_link_libraries(simulate data_exporter)
 
-add_executable(attitude_controller
-  src/controller/attitude_controller.cpp
-)
-target_link_libraries(attitude_controller ${catkin_LIBRARIES})
-add_dependencies(attitude_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_library(signal_generator src/simulate/signal_generators.cpp)
 
+add_library(plotter src/plot/plotter.cpp)
+target_link_libraries(plotter quat_tools)
 
-add_executable(position_controller
-  src/controller/position_controller.cpp
-)
-target_link_libraries(position_controller ${catkin_LIBRARIES})
-add_dependencies(position_controller ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-# add_executable(${PROJECT_NAME}_node src/adaptive_attitude_controller_node.cpp)
-
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+add_library(data_exporter src/plot/data_exporter.cpp)
+target_link_libraries(data_exporter quat_tools)

@@ -1,64 +1,68 @@
 #pragma once
 
-#include <ros/ros.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <nav_msgs/Odometry.h>
 #include <cmath>
-#include "rosflight_msgs/Command.h"
+#include "tools/quat.h"
 
 namespace controller{
-  typedef struct
-  {
-    double roll;
-    double pitch;
-    double yaw;
-    double F;
-  } attitude_input_t;
-
   class PositionController
   {
     public:
-      PositionController(ros::NodeHandle *nh);
+      PositionController();
+
+			void controllerCallback(
+					Eigen::Vector3d pos, Eigen::Vector3d vel, Eigen::Quaterniond q
+					);
+
+			Eigen::Quaterniond getInputAttitude();
+			double getInputThrust();
+
+			void setRefSignal(Eigen::Vector3d pos_ref);
+			void setRefSignal(Eigen::Vector3d pos_ref, Eigen::Vector3d vel_ref);
+
     private:
-      // ROS
-      ros::NodeHandle nh_;
-      ros::Subscriber odom_subscriber_;
-      ros::Publisher command_publisher_;
-
-      ros::Publisher position_error_publisher;
-      ros::Publisher position_publisher;
-      ros::Publisher position_ref_publisher;
-
+			// *******
       // Signals
+			// *******
+
       // State
-      Eigen::VectorXd pos_;
-      Eigen::Vector3d z_b_; // z-axis in body frame
+      Eigen::Vector3d pos_;
+      Eigen::Vector3d vel_;
+			Eigen::Quaterniond q_;
+      Eigen::Vector3d thrust_direction_;
+
       // Errors
-      Eigen::VectorXd e_pos_;
+      Eigen::Vector3d e_pos_;
+      Eigen::Vector3d e_vel_;
 
       // Command
-      Eigen::VectorXd pos_d_;
+      Eigen::Vector3d pos_ref_;
+      Eigen::Vector3d vel_ref_;
 
+			// *********
+			// Controller
+			// *********
+			Eigen::MatrixXd K_;
+			double F_thrust_;
+			Eigen::Quaterniond q_desired_;
+
+			// *******
       // Model parameters
+			// *******
+
       double m_;
       double g_;
       double max_thrust_;
 
-      // Controller
-      attitude_input_t input_;
-
+			// *******
       // Functions
+			// *******
+
       void init();
       void calculateErrors();
       void computeInput();
-      void publishCommand();
-      void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
 
       double saturate(double v, double min, double max);
-      void publish_position_tracking();
-
-      Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q);
-      Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll);
   };
 }

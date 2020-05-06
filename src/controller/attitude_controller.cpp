@@ -1,129 +1,108 @@
 #include "controller/attitude_controller.h"
 
 namespace controller {
-  AdaptiveController::AdaptiveController(ros::NodeHandle *nh)
-    : nh_(*nh)
+  AdaptiveController::AdaptiveController()
   {
     init();
-
-    odom_subscriber_ = nh_.subscribe("/attitude", 1000,
-        &AdaptiveController::odomCallback, this);
-    attitude_command_subscriber_ = nh_.subscribe("/attitude_command", 1000,
-        &AdaptiveController::commandCallback, this);
-    command_publisher_ = nh_.advertise<rosflight_msgs::Command>(
-        "/command", 1000);
-
-    attitude_publisher_ = nh_.advertise<rosflight_msgs::Command>(
-        "/attitude_euler", 1000);
-    attitude_ref_publisher = nh_.advertise<rosflight_msgs::Command>(
-        "/attitude_ref_euler", 1000);
-    attitude_cmd_traj_publisher = nh_.advertise<rosflight_msgs::Command>(
-        "/attitude_cmd_traj_euler", 1000);
-    w_c_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
-        "/w_c", 1000);
-
-    w_bc_msg_publisher = nh_.advertise<rosflight_msgs::Command>(
-        "/w_bc", 1000);
-
-    attitude_cmd_traj_quat_publisher = nh_.advertise<rosflight_msgs::Attitude>(
-        "/attitude_cmd_traj", 1000);
-
-    std::cout << "Attitude controller initialized" << std::endl;
   }
 
   void AdaptiveController::init()
   {
-    while (ros::Time::now() == ros::Time(0)); // Make sure time is published
-    start_time_ = ros::Time::now();
+		// *******
+    // Model parameters
+		// *******
+		Eigen::Matrix3d est_errors;
+		est_errors << 0.008, 0,  0,
+									0, 0.005, 0,
+									0, 0,  0.01;
 
-    time_step_ = pow(10, -3); // Taken from simulation
+    J_nominal_ << 0.07, 0, 0,
+									0, 0.08, 0,
+									0, 0, 0.12; // From .urdf file
+		// Augment inertia matrix to not be perfectly identified
+		J_nominal_ += est_errors * 30;
 
+		// *******
+		// Trajectory generator params
+		// *******
+    step_size_ = pow(10, -3); // From simulation
+
+    cmd_w_0_ = 11.0; // Bandwidth
+    cmd_damping_ = 1.0; // Damping
+
+		// *******
     // Controller params
-    k_q_ = 2.0;
-    k_w_ = 5.0;
+		// *******
+    k_q_ = 60.0;
+    k_w_ = 10.0;
 
-    // Initialize model parameters
-    double max_rotor_thrust = 14.961;
-    double arm_length = 0.2;
-    max_thrust_ = max_rotor_thrust * 4; // From orgazebo sim, 4 rotor
-    max_torque_ = arm_length * max_rotor_thrust * 2;
-    J_ << 0.07, 0, 0,
-          0, 0.08, 0,
-          0, 0, 0.12; // From .urdf file
+		// *******
+		// Adaptive controller
+		// *******
+		enable_adaptive_controller_ = false;
+		k_e_ = 25;
 
+		// Adaptive gains
+		adaptive_gain_Theta_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
+		adaptive_gain_Lambda_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
+		adaptive_gain_tau_ = 350;
+
+		// Nominal values
+		Theta_nominal_ = Eigen::Matrix3d::Zero();
+		Theta_nominal_(0,0) = (J_nominal_(2,2) - J_nominal_(1,1)) / J_nominal_(0,0);
+		Theta_nominal_(1,1) = (J_nominal_(0,0) - J_nominal_(2,2)) / J_nominal_(1,1);
+		Theta_nominal_(2,2) = (J_nominal_(1,1) - J_nominal_(0,0)) / J_nominal_(2,2);
+
+		// Initialize adaptive parameters
+		Lambda_hat_ = Eigen::Matrix3d(J_nominal_.inverse());
+		Theta_hat_ = Eigen::Matrix3d(Theta_nominal_);
+		tau_dist_hat_ << 0, 0, 0;
+
+		// Initialize signals
+		P_ = Eigen::Matrix3d::Identity();
+		Phi_ << 0, 0, 0;
+
+		w_adaptive_model_ << 0, 0, 0;
+		e_adaptive_model_ << 0, 0, 0;
+
+		// *******
     // Initialize variables
+		// *******
     q_ = Eigen::Quaterniond::Identity();
     w_ = Eigen::Vector3d::Zero();
     q_e_ = Eigen::Quaterniond::Identity();
     w_bc_ = Eigen::Vector3d::Zero();
 
-    // Set initial values for command trajectory:
     q_c_ = Eigen::Quaterniond::Identity();
     w_c_ = Eigen::Vector3d::Zero();
     w_c_dot_ = Eigen::Vector3d::Zero();
-    w_c_body_frame = Eigen::Vector3d::Zero();
-    w_c_dot_body_frame = Eigen::Vector3d::Zero();
+    w_c_body_frame_ = Eigen::Vector3d::Zero();
+    w_c_dot_body_frame_ = Eigen::Vector3d::Zero();
 
-    q_r_ = controller::EulerToQuat(0,0,0);
-
+    q_r_ = EulerToQuat(0,0,0);
   }
 
-  void AdaptiveController::refSignalCallback()
+  void AdaptiveController::controllerCallback(Eigen::Quaterniond q, Eigen::Vector3d w, double t)
   {
-    if (ros::Time::now() - start_time_ <= ros::Duration(5.0))
-    {
-      stabilize_curr_pos_ = true;
-    }
-    /*else if (ros::Time::now() - start_time_ <= ros::Duration(5.2))
-    {
-      stabilize_curr_pos_ = false;
-      att_ref_euler_ << 0.05, 0.0, 0.0;
-      q_r_ = controller::EulerToQuat(att_ref_euler_(2), att_ref_euler_(1), att_ref_euler_(0));
-    }*/
-    else
-    {
-      stabilize_curr_pos_ = true;
-    }
-  }
-
-  void AdaptiveController::odomCallback(
-      const rosflight_msgs::Attitude::ConstPtr &msg
-      )
-  {
-    q_ = Eigen::Quaterniond(msg->attitude.w,
-                            msg->attitude.x,
-                            msg->attitude.y,
-                            msg->attitude.z);
-
-    w_ << msg->angular_velocity.x,
-          msg->angular_velocity.y,
-          msg->angular_velocity.z;
+		t_ = t;
+    q_ = Eigen::Quaterniond(q);
+    w_ = Eigen::Vector3d(w);
 
     // Controll loop
-    refSignalCallback();
     generateCommandSignal();
     calculateErrors();
-    computeInput();
-    publishCommand();
-    publish_attitude_tracking();
-  }
-
-  void AdaptiveController::commandCallback(
-      const rosflight_msgs::Command::ConstPtr& msg
-      )
-  {
-    // Feedforward input thrust
-    input_.F = msg->F;
-
-    // Save desired angles to reference signal
-    if (stabilize_curr_pos_)
-      q_r_ = controller::EulerToQuat(msg->z, msg->y, msg->x);
+    calculateBaselineInput();
+		if (enable_adaptive_controller_)
+		{
+			calculateAdaptiveReferenceErrors();
+			calculateAdaptiveParameters();
+			calculateAdaptiveInput();
+		}
+		calculateTotalInputTorques();
   }
 
   void AdaptiveController::generateCommandSignal()
   {
-    double w_0 = 10.0; // Bandwidth
-    double D = 1.0; // Damping
 
     // Difference between reference and command frame
     Eigen::Quaterniond q_rc = q_r_.conjugate() * q_c_;
@@ -135,19 +114,18 @@ namespace controller {
 
     // Define derivatives
     Eigen::Quaterniond q_c_dot = q_c_ * w_c_quat;
-    w_c_dot_ = - 2 * pow(w_0, 2) * quat_log_v(quat_plus_map(q_rc))
-      - 2 * D * w_0 * w_c_;
+    w_c_dot_ = - 2 * pow(cmd_w_0_, 2) * quat_log_v(quat_plus_map(q_rc))
+      - 2 * cmd_damping_ * cmd_w_0_ * w_c_;
     // Note: w_c_dot_ = u_c in the paper
 
     // Integrate using forward Euler:
-    q_c_.w() = q_c_.w() + time_step_ * q_c_dot.w();
-    q_c_.vec() = q_c_.vec() + time_step_ * q_c_dot.vec();
-    w_c_ = w_c_ + time_step_ * w_c_dot_;
-
+    q_c_.w() = q_c_.w() + step_size_ * q_c_dot.w();
+    q_c_.vec() = q_c_.vec() + step_size_ * q_c_dot.vec();
+    w_c_ = w_c_ + step_size_ * w_c_dot_;
 
     // Calculate body frame values
-    w_c_body_frame = q_e_.conjugate()._transformVector(w_c_);
-    w_c_dot_body_frame = q_e_.conjugate()._transformVector(w_c_dot_);
+    w_c_body_frame_ = q_e_.conjugate()._transformVector(w_c_);
+    w_c_dot_body_frame_ = q_e_.conjugate()._transformVector(w_c_dot_);
   }
 
   void AdaptiveController::calculateErrors()
@@ -156,187 +134,143 @@ namespace controller {
     q_e_ = q_c_.conjugate() * q_;
     // Calculate angular velocity error
     w_bc_ = w_ - q_e_.conjugate()._transformVector(w_c_);
-    //std::cout << w_bc_ << std::endl << std::endl;
   }
 
-  void AdaptiveController::computeInput()
+	void AdaptiveController::calculateAdaptiveReferenceErrors()
+	{
+		// Define signals
+		Eigen::Matrix3d A_m;
+		Eigen::Vector3d r;
+
+		A_m = - k_w_ * Eigen::Matrix3d::Identity() - cross_map(w_c_body_frame_);
+		r = w_c_dot_body_frame_
+			- k_q_ * quat_log_v(quat_plus_map(q_e_))
+			+ k_w_ * w_c_body_frame_;
+
+		// Calculate derivative
+		Eigen::Vector3d w_adaptive_model_dot;
+		w_adaptive_model_dot = A_m * w_adaptive_model_ + r - k_e_ * e_adaptive_model_;
+	
+		// Forward euler
+		w_adaptive_model_ = w_adaptive_model_ + step_size_ * w_adaptive_model_dot;
+
+		// Calculate adaptive model error
+		e_adaptive_model_ = w_adaptive_model_ - w_;
+	}
+
+
+	void AdaptiveController::calculateAdaptiveParameters()
+	{
+		// Regressor signal
+		Phi_ << - w_(2) * w_(1),
+						- w_(0) * w_(2),
+						- w_(0) * w_(1);
+
+		// Calculate derivatives
+		Eigen::Vector3d tau_dist_hat_dot;
+		Eigen::Matrix3d Theta_hat_dot;
+		Eigen::Matrix3d Lambda_hat_dot;
+
+		tau_dist_hat_dot = - adaptive_gain_tau_ * P_ * e_adaptive_model_;
+		Lambda_hat_dot = - adaptive_gain_Lambda_ * P_ * e_adaptive_model_ *	total_input_torques_.transpose();
+		Theta_hat_dot = - adaptive_gain_Theta_ * P_ * e_adaptive_model_ * Phi_.transpose();
+
+		// Forward euler
+		tau_dist_hat_ = tau_dist_hat_ + step_size_ * tau_dist_hat_dot;
+		Lambda_hat_ = Lambda_hat_ + step_size_ * Lambda_hat_dot;
+		Theta_hat_ = Theta_hat_ + step_size_ * Theta_hat_dot;
+	}
+
+	void AdaptiveController::calculateAdaptiveInput()
+	{
+		tau_adaptive_ = Lambda_hat_.inverse()
+			* (- (Theta_hat_ - Theta_nominal_) * Phi_ - tau_dist_hat_)
+			- (Eigen::Matrix3d::Identity() - Lambda_hat_.inverse() * J_nominal_.inverse())
+			* tau_baseline_;
+	}
+
+  void AdaptiveController::calculateBaselineInput()
   {
     // Calculates inputs for the NED frame!
     // Baseline controller
-    Eigen::Vector3d cancellation_terms = cross_map(w_) * J_ * w_
-      + J_ * (w_c_dot_body_frame
-          + cross_map(w_) * w_c_body_frame);
+		// TODO fix these names
+    Eigen::Vector3d cancellation_terms = cross_map(w_) * J_nominal_ * w_
+      + J_nominal_ * (w_c_dot_body_frame_
+          + cross_map(w_) * w_c_body_frame_);
 
-    Eigen::Vector3d feedforward_terms = J_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
+    Eigen::Vector3d feedforward_terms = J_nominal_ * (- k_q_ * quat_log_v(quat_plus_map(q_e_)) - k_w_ * w_bc_);
 
-    input_.tau = cancellation_terms + feedforward_terms;
+    tau_baseline_ = cancellation_terms + feedforward_terms;
   }
 
-  void AdaptiveController::publishCommand()
-  {
-    rosflight_msgs::Command command;
-    command.header.stamp = ros::Time::now();
-    //command.mode = rosflight_msgs::Command::MODE_ROLL_PITCH_YAWRATE_THROTTLE;
-    command.mode = rosflight_msgs::Command::MODE_PASS_THROUGH;
+	void AdaptiveController::calculateTotalInputTorques()
+	{
+		total_input_torques_ = tau_baseline_;
+		if (enable_adaptive_controller_)
+			total_input_torques_ += tau_adaptive_;
+	}
 
-    command.F = saturate(input_.F / max_thrust_, 0, 1);
-    // Defined in NED frame by ROSflight
-    command.x = saturate(input_.tau(0) / max_torque_, -1, 1);
-    command.y = saturate(input_.tau(1) / max_torque_, -1, 1);
-    command.z = saturate(input_.tau(2) / 3, -1, 1); // TODO change with real z max torque
+	// *******
+	// Setters
+	// *******
 
-    command_publisher_.publish(command);
-  }
+	void AdaptiveController::setRefSignal(Eigen::Quaterniond q_ref)
+	{
+		q_r_ = q_ref;
+	}
 
+	void AdaptiveController::setAdaptive(bool enable_adaptive_controller)
+	{
+		enable_adaptive_controller_ = enable_adaptive_controller;
+	}
 
-  // ***********************
-  // Publish for plotting
-  // ***********************
-  void AdaptiveController::publish_attitude_tracking()
-  {
-    rosflight_msgs::Command attitude;
-    attitude.header.stamp = ros::Time::now();
-    Eigen::Vector3d att_vec = controller::QuatToEuler(q_);
-    attitude.x = att_vec(0);
-    attitude.y = att_vec(1);
-    attitude.z = att_vec(2);
-    attitude_publisher_.publish(attitude);
+	// *******
+	// Getters
+	// *******
 
-    rosflight_msgs::Command attitude_ref;
-    attitude_ref.header.stamp = ros::Time::now();
-    attitude_ref.x = att_ref_euler_(0);
-    attitude_ref.y = att_ref_euler_(1);
-    attitude_ref.z = att_ref_euler_(2);
-    attitude_ref_publisher.publish(attitude_ref);
+	Eigen::Vector3d AdaptiveController::getAdaptiveModelAngVel()
+	{
+		return w_adaptive_model_;
+	}
 
-    rosflight_msgs::Command attitude_cmd_traj;
-    attitude_cmd_traj.header.stamp = ros::Time::now();
-    Eigen::Vector3d att_cmd_traj_vec = controller::QuatToEuler(q_c_);
-    attitude_cmd_traj.x = att_cmd_traj_vec(0);
-    attitude_cmd_traj.y = att_cmd_traj_vec(1);
-    attitude_cmd_traj.z = att_cmd_traj_vec(2);
-    attitude_cmd_traj_publisher.publish(attitude_cmd_traj);
+	Eigen::Vector3d AdaptiveController::getAdaptiveModelError()
+	{
+		return e_adaptive_model_;
+	}
 
-    rosflight_msgs::Attitude attitude_cmd_traj_quat;
-    attitude_cmd_traj_quat.header.stamp = ros::Time::now();
-    attitude_cmd_traj_quat.attitude.x = q_e_.x();
-    attitude_cmd_traj_quat.attitude.y = q_e_.y();
-    attitude_cmd_traj_quat.attitude.z = q_e_.z();
-    attitude_cmd_traj_quat.attitude.w = q_e_.w();
-    attitude_cmd_traj_quat_publisher.publish(attitude_cmd_traj_quat);
+	Eigen::Quaterniond AdaptiveController::getAttCmdSignal()
+	{
+		return q_c_;
+	}
 
-    rosflight_msgs::Command w_c_msg;
-    w_c_msg.header.stamp = ros::Time::now();
-    w_c_msg.x = w_c_(0);
-    w_c_msg.y = w_c_(1);
-    w_c_msg.z = w_c_(2);
-    w_c_msg_publisher.publish(w_c_msg);
+	Eigen::Matrix3d AdaptiveController::getThetaHat()
+	{
+		return Theta_hat_;
+	}
 
-    rosflight_msgs::Command w_bc_msg;
-    w_bc_msg.header.stamp = ros::Time::now();
-    w_bc_msg.x = w_bc_(0);
-    w_bc_msg.y = w_bc_(1);
-    w_bc_msg.z = w_bc_(2);
-    w_bc_msg_publisher.publish(w_bc_msg);
-  }
+	Eigen::Matrix3d AdaptiveController::getLambdaHat()
+	{
+		return Lambda_hat_;
+	}
 
-  // *********
-  // Utilities
-  // *********
-  double AdaptiveController::saturate(double v, double min, double max)
-  {
-    v = v > max ? max : (
-        v < min ? min : v
-        );
+	Eigen::Vector3d AdaptiveController::getTauDistHat()
+	{
+		return tau_dist_hat_;
+	}
 
-    return v;
-  }
+	Eigen::Vector3d AdaptiveController::getBaselineInput()
+	{
+		return	tau_baseline_;
+	}
 
-  // Note: also called hat map in litterature
-  Eigen::Matrix3d AdaptiveController::cross_map(Eigen::Vector3d v)
-  {
-    Eigen::Matrix3d v_hat;
-    v_hat << 0, -v(2), v(1),
-            v(2), 0, -v(0),
-          -v(1), v(0), 0;
-    return v_hat;
-  }
+	Eigen::Vector3d AdaptiveController::getAdaptiveInput()
+	{
+		return	tau_adaptive_;
+	}
 
-  // Opposite of hat map
-  Eigen::Vector3d AdaptiveController::vee_map(Eigen::Matrix3d v_hat)
-  {
-    Eigen::Vector3d v;
-    v << v_hat(2,1), v_hat(0,2), v_hat(0,1);
-    return v;
-  }
-
-  // Returns the direct map of the quaternion logarithm to R^3 (instead of R^4)
-  Eigen::Vector3d AdaptiveController::quat_log_v(Eigen::Quaterniond q)
-  {
-    Eigen::AngleAxis<double> aa(q);
-    return (aa.angle() / 2) * aa.axis();
-  }
-
-  // Returns the short rotation quaternion with angle <= pi
-  Eigen::Quaterniond AdaptiveController::quat_plus_map(Eigen::Quaterniond q)
-  {
-    return q.w() >= 0 ? q : Eigen::Quaterniond(-q.w(), q.x(), q.y(), q.z());
-  }
-
-  // TODO Change order ehre! wtf
-  Eigen::Quaterniond EulerToQuat(double yaw, double pitch, double roll)
-    // yaw (Z), pitch (Y), roll (X)
-  {
-    // Abbreviations for the various angular functions
-    double cy = cos(yaw * 0.5);
-    double sy = sin(yaw * 0.5);
-    double cp = cos(pitch * 0.5);
-    double sp = sin(pitch * 0.5);
-    double cr = cos(roll * 0.5);
-    double sr = sin(roll * 0.5);
-
-    Eigen::Quaterniond q;
-    q.w() = cr * cp * cy + sr * sp * sy;
-    q.x() = sr * cp * cy - cr * sp * sy;
-    q.y() = cr * sp * cy + sr * cp * sy;
-    q.z() = cr * cp * sy - sr * sp * cy;
-
-    return q;
-  }
-
-  Eigen::Vector3d QuatToEuler(Eigen::Quaterniond q) {
-    Eigen::Vector3d euler;
-
-    // roll (x-axis rotation)
-    double sinr_cosp = 2 * (q.w() * q.x() + q.y() * q.z());
-    double cosr_cosp = 1 - 2 * (q.x() * q.x() + q.y() * q.y());
-    euler(0) = std::atan2(sinr_cosp, cosr_cosp);
-
-    // pitch (y-axis rotation)
-    double sinp = 2 * (q.w() * q.y() - q.z() * q.x());
-    if (std::abs(sinp) >= 1)
-        euler(1) = std::copysign(M_PI / 2, sinp); // use 90 degrees if out of range
-    else
-        euler(1) = std::asin(sinp);
-
-    // yaw (z-axis rotation)
-    double siny_cosp = 2 * (q.w() * q.z() + q.x() * q.y());
-    double cosy_cosp = 1 - 2 * (q.y() * q.y() + q.z() * q.z());
-    euler(2) = std::atan2(siny_cosp, cosy_cosp);
-
-    return euler;
-  }
+	Eigen::Vector3d AdaptiveController::getInputTorques()
+	{
+		return	total_input_torques_;
+	}
 
 } // namespace controller
-
-
-// TODO move out of ROS node
-int main(int argc, char **argv)
-{
-  ros::init(argc, argv, "adaptive_controller");
-  ros::NodeHandle nh;
-  controller::AdaptiveController c = controller::AdaptiveController(&nh);
-  ros::spin();
-
-  return 0;
-}
