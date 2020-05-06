@@ -20,7 +20,7 @@ namespace controller {
 									0, 0.08, 0,
 									0, 0, 0.12; // From .urdf file
 		// Augment inertia matrix to not be perfectly identified
-		J_nominal_ += est_errors * 20;
+		J_nominal_ += est_errors * 30;
 
 		// *******
 		// Trajectory generator params
@@ -33,8 +33,8 @@ namespace controller {
 		// *******
     // Controller params
 		// *******
-    k_q_ = 20.0;
-    k_w_ = 20.0;
+    k_q_ = 60.0;
+    k_w_ = 10.0;
 
 		// *******
 		// Adaptive controller
@@ -45,7 +45,7 @@ namespace controller {
 		// Adaptive gains
 		adaptive_gain_Theta_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
 		adaptive_gain_Lambda_ = 1 * Eigen::Vector3d(1,1,1).asDiagonal();
-		adaptive_gain_tau_ = 600;
+		adaptive_gain_tau_ = 350;
 
 		// Nominal values
 		Theta_nominal_ = Eigen::Matrix3d::Zero();

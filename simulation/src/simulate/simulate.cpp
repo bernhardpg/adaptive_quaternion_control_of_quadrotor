@@ -4,13 +4,13 @@ void simulate()
 {
 	// Simulation parameters
 	double step_size = pow(10, -3);
-	int T = 50; // s, end time
+	int T = 40; // s, end time
 	int N = T / step_size; // Number of time steps
 
 	double arm_length = 0.2;
 	double max_rotor_thrust = 1.4 * 9.81; // N
 	double max_thrust = max_rotor_thrust * 4;
-	double max_torque = arm_length * max_rotor_thrust * 2;
+	double max_torque = arm_length * max_rotor_thrust;
 
 	// Model parameters
 	Eigen::Matrix3d J;
@@ -19,6 +19,7 @@ void simulate()
 				0, 0, 0.12; // From .urdf file
 	double m = 2.856;
 	Eigen::Vector3d gravity(0,0,9.81);
+	double wrench_weight = 0.5;
 
 	// Variables
 	Eigen::Quaterniond q = EulerToQuat(0, 0, 0);
@@ -75,7 +76,7 @@ void simulate()
 	if (test_mode == "pos_tracking" || test_mode == "pos_tracking_weight")
 	{
 		ref_traj = getRefTrajCircular(N);
-		attitude_controller.setAdaptive(true);
+		attitude_controller.setAdaptive(false);
 	}
 	else if (test_mode == "att_square")
 	{
@@ -99,7 +100,7 @@ void simulate()
 		if (test_mode == "att_square" || test_mode == "att_square_weight")
 		{
 			// Enable adaptive controller after 10 seconds
-			if (t > 15)
+			if (t > 20)
 				attitude_controller.setAdaptive(true);
 
 			// Send current reference signal to controller
@@ -109,7 +110,10 @@ void simulate()
 		if (test_mode == "att_square_weight")
 		{
 			double roll = QuatToEuler(q)(0);
-			tau_dist << 0.20 * 9.81 * arm_length * cos(roll), 0, 0;
+			double pitch = QuatToEuler(q)(1);
+			tau_dist << wrench_weight * 9.81 * arm_length * cos(roll),
+									wrench_weight * 9.81 * arm_length * cos(pitch),
+									0;
 		}
 		if (test_mode == "pos_tracking" || test_mode == "pos_tracking_weight")
 		{
@@ -117,11 +121,17 @@ void simulate()
 
 			if (test_mode == "pos_tracking_weight")
 			{
-				if (t > 25)
+				if (t > 0)
 				{
 					double roll = QuatToEuler(q)(0);
-					tau_dist << 0.3 * 9.81 * arm_length * cos(roll), 0, 0;
+					double pitch = QuatToEuler(q)(1);
+					tau_dist << wrench_weight * 9.81 * arm_length * cos(roll),
+											wrench_weight * 9.81 * arm_length * cos(pitch),
+											0;
 				}
+
+				if (t > 20)
+					attitude_controller.setAdaptive(true);
 			}
 		}
 
@@ -190,13 +200,17 @@ void simulate()
 		tau_dist_hats(i) = attitude_controller.getTauDistHat();
 	}
 
+	std::cout << "Exporting" << std::endl;
+	export_position(poss, ref_poss, ts);
+	export_attitude(qs, ref_attitudes, cmds, ts);
+	export_input_torques(input_torques, Eigen::Vector3d(max_torque, max_torque, max_torque), ts);
+	export_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
+
 	std::cout << "Plotting" << std::endl;
-	plot_attitude(qs, ref_attitudes, cmds, ts);
-	plot_position(poss, ref_poss, ts);
-	plot_position3d(poss, ref_poss);
+	//plot_position3d(poss, ref_poss);
 	//plot_input_torques(baseline_input_torques, adaptive_input_torques, ts);
-	plot_input_torques(input_torques, Eigen::Vector3d(max_torque, max_torque, max_torque), ts);
+	//plot_input_torques(input_torques, Eigen::Vector3d(max_torque, max_torque, max_torque), ts);
 	//plot_adaptive_ref_model(ws, ws_adaptive_model, ts);
-	plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
+	//plot_adaptive_params(Theta_hats, Lambda_hats, tau_dist_hats, ts);
 	//plot_cmd(cmds, ref_attitudes, ts);
 }

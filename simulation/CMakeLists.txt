@@ -44,8 +44,12 @@ target_link_libraries(simulate Eigen3::Eigen)
 target_link_libraries(simulate attitude_controller)
 target_link_libraries(simulate position_controller)
 target_link_libraries(simulate plotter)
+target_link_libraries(simulate data_exporter)
 
 add_library(signal_generator src/simulate/signal_generators.cpp)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter quat_tools)
+
+add_library(data_exporter src/plot/data_exporter.cpp)
+target_link_libraries(data_exporter quat_tools)
